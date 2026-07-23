@@ -89,16 +89,6 @@ export interface CustomClassInfo {
 export interface CssScanResult {
   found: Map<string, string[]>
   unscannable: string[]
-  /** Préfixe de site détecté par heuristique (option `prefix` de Tailwind v4), informatif
-   * uniquement — voir `detectSitePrefix` dans css-scanner.ts. */
-  detectedPrefix: string | null
-}
-
-// --- Variables de thème v4 (--color-*, --radius-*...) détectées sur le site ---
-
-export interface ThemeVariable {
-  name: string
-  value: string
 }
 
 // --- Historique des modifications de la session (toute la page, pas juste l'élément courant) ---
@@ -147,8 +137,7 @@ export type SyncFromContent =
   | { type: 'ELEMENT_SELECTED'; tagName: string; classes: string[]; ancestors: AncestorInfo[]; colors: ElementColors }
   | { type: 'ELEMENT_CLEARED' }
   | { type: 'CLASSES_UPDATED'; classes: string[]; unsupportedClass?: string | null; colors: ElementColors }
-  | { type: 'CUSTOM_SCAN_RESULT'; found: [string, string[]][]; unscannable: string[]; detectedPrefix: string | null }
-  | { type: 'THEME_SCAN_RESULT'; variables: ThemeVariable[] }
+  | { type: 'CUSTOM_SCAN_RESULT'; found: [string, string[]][]; unscannable: string[] }
   | { type: 'CHANGE_LOG_UPDATED'; entries: ChangeLogEntry[] }
   | { type: 'LOCKED_CHANGED'; locked: boolean }
 
@@ -161,7 +150,6 @@ export type SyncFromPanel =
   | { type: 'REMOVE_CLASS'; rawClass: string }
   | { type: 'TOGGLE_CLASS'; rawClass: string }
   | { type: 'RUN_CSS_SCAN' }
-  | { type: 'RUN_THEME_SCAN' }
   | { type: 'SELECT_ANCESTOR'; index: number }
   | { type: 'NAVIGATE'; direction: NavigateDirection }
   | { type: 'SET_LOCKED'; locked: boolean }

@@ -4,7 +4,6 @@ import ClassChip from './components/ClassChip'
 import SearchBar from './components/SearchBar'
 import CategoryNav from './components/CategoryNav'
 import CustomClassesSection from './components/CustomClassesSection'
-import ThemeVariablesSection from './components/ThemeVariablesSection'
 import VariantToolbar from './components/VariantToolbar'
 import Breadcrumb from './components/Breadcrumb'
 import RecentClasses from './components/RecentClasses'
@@ -238,7 +237,6 @@ export default function DevPanel() {
               />
 
               <CustomClassesSection activeClasses={activeClasses} />
-              <ThemeVariablesSection />
             </>
           )}
         </>

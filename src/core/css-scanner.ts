@@ -19,67 +19,6 @@ function isRecognizedTailwindClass(className: string): boolean {
   return matchTaxonomy(base) !== null
 }
 
-const KNOWN_BREAKPOINTS = new Set(['sm', 'md', 'lg', 'xl', '2xl'])
-// Liste des variants standards Tailwind (pseudo-classes ET pseudo-éléments) : `after`/`before`
-// notamment sont de VRAIS variants Tailwind (`::after`/`::before`), pas des préfixes de site —
-// oubliés initialement, ce qui les faisait détecter à tort comme préfixe custom sur un site qui
-// les utilise (ex. `after:content-['']`). Liste volontairement large pour éviter de futurs faux
-// positifs similaires plutôt que de la compléter au fil des rapports de bugs.
-const KNOWN_PSEUDO = new Set([
-  // Pseudo-classes
-  'hover', 'focus', 'focus-visible', 'focus-within', 'active', 'visited', 'target',
-  'first', 'last', 'only', 'odd', 'even', 'first-of-type', 'last-of-type', 'only-of-type',
-  'empty', 'disabled', 'enabled', 'checked', 'indeterminate', 'default', 'required', 'optional',
-  'valid', 'invalid', 'in-range', 'out-of-range', 'placeholder-shown', 'autofill', 'read-only',
-  'open', 'inert', 'dark',
-  // Pseudo-éléments
-  'before', 'after', 'placeholder', 'file', 'marker', 'selection', 'first-line', 'first-letter', 'backdrop',
-  // v4
-  'starting',
-])
-
-function isKnownVariantToken(token: string): boolean {
-  if (KNOWN_BREAKPOINTS.has(token)) return true
-  if (token.startsWith('max-') && KNOWN_BREAKPOINTS.has(token.slice(4))) return true
-  if (KNOWN_PSEUDO.has(token)) return true
-  if (/^(group|peer|not)-/.test(token)) return true
-  if (/^aria-/.test(token)) return true
-  if (/^has-\[/.test(token)) return true
-  if (/^data-\[/.test(token)) return true
-  return false
-}
-
-/**
- * Détection heuristique d'un préfixe de site (option `prefix` de Tailwind v4 — syntaxe
- * `tw:bg-red-500`, un variant supplémentaire en tête, PAS un tiret collé comme en v3). Purement
- * informatif pour l'instant : un variant en tête inconnu ne gêne pas la reconnaissance de la
- * base (`bg-red-500` matche toujours), mais son remplacement via le panneau ou sa synthèse live
- * combinée à d'autres variants ne tiennent pas encore compte du préfixe détecté (voir UPGRADES.md).
- */
-export function detectSitePrefix(doc: Document = document): string | null {
-  const candidates = new Map<string, number>()
-  for (const el of Array.from(doc.querySelectorAll('[class]'))) {
-    for (const raw of el.className.toString().split(/\s+/).filter(Boolean)) {
-      const { variants, base } = splitVariants(raw)
-      const [first, ...rest] = variants
-      if (!first || isKnownVariantToken(first)) continue
-      if (!/^[a-z][a-z0-9-]*$/.test(first)) continue
-      if (rest.some((v) => !isKnownVariantToken(v))) continue
-      if (matchTaxonomy(base) === null) continue
-      candidates.set(first, (candidates.get(first) ?? 0) + 1)
-    }
-  }
-  let best: string | null = null
-  let bestCount = 0
-  for (const [candidate, count] of candidates) {
-    if (count > bestCount) {
-      best = candidate
-      bestCount = count
-    }
-  }
-  return bestCount >= 3 ? best : null
-}
-
 function extractClassSelectors(selectorText: string): string[] {
   const out: string[] = []
   for (const m of selectorText.matchAll(CLASS_SELECTOR_RE)) {
@@ -171,7 +110,7 @@ export async function scanCustomClasses(doc: Document = document): Promise<CssSc
     }),
   )
 
-  return { found, unscannable, detectedPrefix: detectSitePrefix(doc) }
+  return { found, unscannable }
 }
 
 function ruleListHasClass(rules: CSSRuleList, target: string): boolean {

@@ -1,7 +1,6 @@
 import { addRawClass, applyClassChange, removeRawClass } from '../core/class-diff'
-import { detectSitePrefix, scanCustomClasses, watchForStylesheetChanges } from '../core/css-scanner'
-import { ensureLiveRule, setSitePrefix } from '../core/live-style'
-import { scanThemeVariables } from '../core/theme-scanner'
+import { scanCustomClasses, watchForStylesheetChanges } from '../core/css-scanner'
+import { ensureLiveRule } from '../core/live-style'
 import { DEVWIND_SYNC_PORT } from '../types'
 import type { AncestorInfo, ChangeLogEntry, ClassChangeResult, ElementColors, SyncFromContent, SyncFromPanel } from '../types'
 
@@ -103,21 +102,12 @@ function send(message: SyncFromContent) {
 }
 
 async function runCssScan() {
-  // Détection du préfixe synchrone, indépendante des fetch() cross-origin de scanCustomClasses
-  // (qui peuvent prendre du temps) : évite qu'une classe appliquée pendant ce délai soit
-  // synthétisée avec le mauvais nom de variable (cf. live-style.ts / theme-scanner.ts).
-  setSitePrefix(detectSitePrefix())
   const result = await scanCustomClasses()
   send({
     type: 'CUSTOM_SCAN_RESULT',
     found: Array.from(result.found.entries()),
     unscannable: result.unscannable,
-    detectedPrefix: result.detectedPrefix,
   })
-}
-
-function runThemeScan() {
-  send({ type: 'THEME_SCAN_RESULT', variables: scanThemeVariables(document, detectSitePrefix()) })
 }
 
 export interface SetupSyncOptions {
@@ -201,10 +191,6 @@ function handlePanelMessage(message: SyncFromPanel) {
     }
     case 'RUN_CSS_SCAN': {
       void runCssScan()
-      return
-    }
-    case 'RUN_THEME_SCAN': {
-      runThemeScan()
       return
     }
     case 'SELECT_ANCESTOR': {

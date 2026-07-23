@@ -27,14 +27,6 @@ export default function CustomClassesSection({ activeClasses }: CustomClassesSec
             {customScan.unscannable.length} feuille(s) non scannable(s)
           </span>
         )}
-        {customScan.detectedPrefix && (
-          <span
-            className="devwind-badge"
-            title="Détecté par heuristique : les classes de ce site semblent préfixées. Reconnues à l'affichage, mais leur remplacement via le panneau ou leur prévisualisation avec d'autres variants peut être imprécis (préfixe non pris en compte)."
-          >
-            préfixe détecté : {customScan.detectedPrefix}:
-          </span>
-        )}
       </summary>
       <div className="devwind-value-grid">
         {classNames.map((cls) => (
