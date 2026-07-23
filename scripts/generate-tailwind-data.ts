@@ -1,40 +1,23 @@
-// Script de build : croise le thème par défaut Tailwind v4 (API publique et stable) avec la
+// Script de build : croise le thème par défaut Tailwind v3 (API publique et stable) avec la
 // taxonomie hand-authored (src/data/taxonomy.ts) pour produire le dataset des classes
 // utilitaires, SANS jamais taper une classe à la main.
 // Sortie versionnée : src/data/generated/tailwind-classes.json (bundlée par Vite, pas de
 // fetch runtime).
 //
-// Tailwind v4 a retiré `resolveConfig` (plus de config JS à résoudre, le moteur est natif/Rust
-// et piloté par CSS via `@theme`). `tailwindcss/defaultTheme` expose encore le thème par défaut
-// brut avec les mêmes clés qu'avant, mais certaines entrées restent des fonctions non résolues
-// (même mécanisme qu'avant `resolveConfig` en v3) — `themeFn` ci-dessous les résout récursivement,
-// vérifié à la main pour chaque clé utilisée par taxonomy.ts (aucune n'est restée fonction après
-// résolution). Différence notable : les couleurs par défaut sont maintenant en OKLCH plutôt qu'en
-// hex (ex. `oklch(63.7% 0.237 25.331)` au lieu de `#ef4444`) — géré nativement par `color-mix()`
-// et les swatches CSS, aucun changement de code nécessaire ailleurs pour ça.
+// `resolveConfig` résout le thème par défaut v3 (config JS, moteur PostCSS) — contrairement à
+// v4 qui l'a retiré au profit d'un moteur natif/Rust piloté par CSS (`@theme`). Couleurs par
+// défaut en hex (`#ef4444`), pas en OKLCH comme en v4 : aucun changement de code nécessaire
+// ailleurs, `getComputedStyle`/canvas gèrent déjà n'importe quelle syntaxe de couleur.
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-// @ts-expect-error -- pas de champ "types" dans les exports de ce sous-chemin, mais les .d.ts
-// sont bien présents à côté du .mjs ; le typage manuel ci-dessous suffit de toute façon.
-import rawDefaultTheme from 'tailwindcss/defaultTheme'
+import resolveConfig from 'tailwindcss/resolveConfig'
 import { taxonomy } from '../src/data/taxonomy'
 import type { GeneratedClass, SlimGeneratedClass, TaxonomyEntry } from '../src/types'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-type RawTheme = Record<string, unknown | ((ctx: { theme: (key: string) => unknown }) => unknown)>
-const rawTheme = rawDefaultTheme as RawTheme
-
-function themeFn(key: string): unknown {
-  const v = rawTheme[key]
-  return typeof v === 'function' ? v({ theme: themeFn }) : v
-}
-
-const theme: Record<string, unknown> = new Proxy(
-  {},
-  { get: (_t, key: string) => themeFn(key) },
-)
+const { theme } = resolveConfig({ content: [] }) as { theme: Record<string, unknown> }
 
 function className(prefix: string, key: string): string {
   if (prefix === '') return key

@@ -3,9 +3,9 @@ import pkg from './package.json' with { type: 'json' }
 
 export default defineManifest(({ mode }) => ({
   manifest_version: 3,
-  name: 'DevWind',
+  name: 'DevWind v3',
   version: pkg.version,
-  description: 'Éditeur visuel de classes Tailwind CSS, en direct dans le navigateur.',
+  description: 'Éditeur visuel de classes Tailwind CSS v3, en direct dans le navigateur.',
   // Fichiers dans public/icons/ : Vite copie déjà tout public/ tel quel à la racine de dist/
   // (public/icons/icon16.png -> dist/icons/icon16.png), donc les chemins ci-dessous sont
   // relatifs à dist/, pas au projet.

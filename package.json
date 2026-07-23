@@ -1,18 +1,18 @@
 {
-  "name": "devwind",
+  "name": "devwind-tw3",
   "private": true,
-  "version": "0.1.2",
-  "description": "Extension Chrome pour éditer visuellement les classes Tailwind CSS v4 en direct sur n'importe quel site.",
+  "version": "0.1.0",
+  "description": "Extension Chrome pour éditer visuellement les classes Tailwind CSS v3 en direct sur n'importe quel site.",
   "type": "module",
   "author": "Forthtilliath",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Forthtilliath/devwind.git"
+    "url": "git+https://github.com/Forthtilliath/devwind-tw3.git"
   },
-  "homepage": "https://github.com/Forthtilliath/devwind#readme",
+  "homepage": "https://github.com/Forthtilliath/devwind-tw3#readme",
   "bugs": {
-    "url": "https://github.com/Forthtilliath/devwind/issues"
+    "url": "https://github.com/Forthtilliath/devwind-tw3/issues"
   },
   "scripts": {
     "generate:tw-data": "tsx scripts/generate-tailwind-data.ts",
@@ -42,7 +42,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^3.4.19",
     "tsx": "^4.23.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
