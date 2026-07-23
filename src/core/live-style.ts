@@ -1,7 +1,7 @@
 import { taxonomy } from '../data/taxonomy'
 import generatedClasses from '../data/generated/tailwind-classes-slim.json'
 import { hasRuleForClass } from './css-scanner'
-import type { LiveRuleStatus, SlimGeneratedClass, TaxonomyEntry } from '../types'
+import type { LiveRuleStatus, SlimGeneratedClass } from '../types'
 
 const GENERATED_BY_CLASSNAME = new Map<string, SlimGeneratedClass>()
 for (const c of generatedClasses as SlimGeneratedClass[]) GENERATED_BY_CLASSNAME.set(c.className, c)
@@ -41,100 +41,31 @@ function cssEscape(className: string): string {
   return className.replace(/([:/[\].%#])/g, '\\$1')
 }
 
-// --- Valeurs : variables de thème v4 + multiplicateur spacing ---
+// --- Valeurs : littérales (v3 n'expose pas son thème en variables CSS runtime) ---
 //
-// Vérifié en compilant du vrai CSS avec @tailwindcss/cli v4.3.3 (pas deviné) : les utilitaires
-// v4 référencent de vraies variables CSS `@theme` pour les échelles à jetons NOMMÉS
-// (`.bg-red-500 { background-color: var(--color-red-500) }`, `.rounded-lg { border-radius:
-// var(--radius-lg) }`), mais inlinent littéralement les échelles purement numériques (opacity,
-// scale, rotate, brightness...). En référençant nous aussi ces mêmes variables (avec notre
-// valeur par défaut en fallback CSS natif), on hérite automatiquement de la vraie valeur du
-// site s'il définit cette classe ailleurs sur la page — pas besoin d'un scan de détection
-// séparé, le fallback `var(x, y)` fait le travail tout seul.
-const THEME_VAR_PREFIX: Partial<Record<string, string>> = {
-  backgroundColor: '--color-',
-  textColor: '--color-',
-  borderColor: '--color-',
-  ringColor: '--color-',
-  divideColor: '--color-',
-  accentColor: '--color-',
-  borderRadius: '--radius-',
-  blur: '--blur-',
-  backdropBlur: '--blur-', // même espace de noms que `blur` (vérifié : backdrop-blur-md référence aussi --blur-md)
-  fontSize: '--text-',
-  fontWeight: '--font-weight-',
-  transitionTimingFunction: '--ease-',
-  animation: '--animate-',
-}
+// Contrairement à v4 (qui référence de vraies variables CSS `@theme`), Tailwind v3 compile
+// chaque classe avec sa valeur de thème inlinée en dur (`.bg-red-500 { background-color: #ef4444
+// }`, `.p-4 { padding: 1rem }` — pas de `calc(var(--spacing) * 4)` ni de `var(--color-red-500)`).
+// Pas de scan de détection de thème custom possible sans parser le CSS compilé du site (hors
+// scope) : on utilise directement la valeur littérale de notre dataset généré.
 
-// Préfixe de site détecté (option `prefix` de Tailwind v4, cf. `detectSitePrefix` dans
-// css-scanner.ts), poussé depuis content/sync.ts après chaque scan. Vérifié en compilant avec
-// `@tailwindcss/cli --prefix tw` : le préfixe s'insère juste après `--` dans TOUTES les
-// variables de thème (`--color-red-500` -> `--tw-color-red-500`, `--spacing` -> `--tw-spacing`),
-// mais PAS dans les variables internes `--tw-*` que Tailwind utilise pour composer
-// transform/filter (celles-ci ne viennent pas de `@theme`, leur nom `tw` est un hasard de
-// nommage interne à Tailwind, indépendant du préfixe configuré par le site).
-let sitePrefix: string | null = null
-
-export function setSitePrefix(prefix: string | null): void {
-  sitePrefix = prefix
-}
-
-function prefixedVarNamespace(namespace: string): string {
-  // `namespace` est du type '--color-' : insère le préfixe de site juste après les deux tirets.
-  return sitePrefix ? `--${sitePrefix}-${namespace.slice(2)}` : namespace
-}
-
-function themeVarValue(taxonomyId: string, suffix: string, fallback: string): string {
-  const rawPrefix = THEME_VAR_PREFIX[taxonomyId]
-  if (!rawPrefix) return fallback
-  const namespace = prefixedVarNamespace(rawPrefix)
-  const varName = suffix ? `${namespace}${suffix}` : namespace.slice(0, -1) // forme nue (DEFAULT) : pas de tiret final
-  return `var(${varName}, ${fallback})`
-}
-
-/** Entrées dont v4 multiplie une variable `--spacing` partagée (`calc(var(--spacing) * N)`)
- * plutôt que d'inliner une valeur par palier de thème — vérifié pour padding/margin/gap/
- * width/height/translate. Seulement pour un suffixe purement numérique : les clés spéciales
- * (`px`, `full`, `auto`, `1/2`...) restent des littéraux (vérifié aussi, ex. `p-px` -> `1px`
- * littéral, `w-1/2` -> `calc(1 / 2 * 100%)` sans rapport avec `--spacing`). */
-const SPACING_MULTIPLIED = new Set(['padding', 'margin', 'gap', 'width', 'minWidth', 'maxWidth', 'height', 'minHeight', 'maxHeight', 'translate'])
-const DEFAULT_SPACING = '0.25rem'
-
-function spacingCalc(suffix: string, negative: boolean): string | null {
-  if (!/^\d+(\.\d+)?$/.test(suffix)) return null
-  const varName = sitePrefix ? `--${sitePrefix}-spacing` : '--spacing'
-  return `calc(var(${varName}, ${DEFAULT_SPACING}) * ${negative ? '-' : ''}${suffix})`
-}
-
-function extractSuffix(classNameWithSign: string, prefix: string, negative: boolean): string {
-  const withoutSign = negative ? classNameWithSign.slice(1) : classNameWithSign
-  return prefix ? withoutSign.slice(prefix.length + 1) : withoutSign
-}
-
-/** Calcule la valeur CSS d'une classe générée (hors modificateur d'opacité, géré à part) :
- * multiplicateur spacing, variable de thème nommée avec fallback, ou littéral bundlé tel quel. */
-function computeValue(entry: TaxonomyEntry, generated: SlimGeneratedClass, suffix: string): string {
-  const literal = generated.negative ? `-${generated.themeToken}` : (generated.themeToken as string)
-  if (SPACING_MULTIPLIED.has(entry.id)) {
-    return spacingCalc(suffix, generated.negative) ?? literal
-  }
-  return themeVarValue(entry.id, suffix, literal)
-}
-
-// --- Propriétés composites (scale / translate / skew / filter / backdrop-filter) ---
+// --- Propriétés composites (transform / filter / backdrop-filter) ---
 //
 // Tailwind combine plusieurs classes indépendantes sur une même propriété via des variables CSS
-// partagées (ex. `scale-105` et `skew-y-3` doivent affecter leurs propriétés respectives sans
-// s'écraser si une troisième classe les recombine). Chaque classe composite pose SA variable ET
-// réaffirme la formule complète de la propriété partagée — exactement le CSS que Tailwind génère
-// lui-même. Fallback (`var(--x, defaut)`) dans chaque référence pour rester correct même sur un
-// site sans preflight Tailwind. NOTE v4 (vérifié) : `rotate`/`scale`/`translate` sont maintenant
-// des propriétés CSS natives séparées (plus un seul `transform` composite comme en v3) — seul
-// `skew` reste sur `transform` (CSS n'a pas de propriété `skew` native). `rotate` n'a donc plus
-// besoin d'être composite du tout (voir son entrée directe dans taxonomy.ts, propriété `rotate`).
+// partagées (ex. `scale-105` et `rotate-45` doivent toutes les deux affecter `transform` sans
+// s'écraser). Chaque classe composite pose SA variable ET réaffirme la formule complète de la
+// propriété partagée — exactement le CSS que Tailwind génère lui-même, ce qui permet à
+// n'importe quelle combinaison de classes de fonctionner par cascade. Fallback (`var(--x,
+// defaut)`) dans chaque référence pour rester correct même sur un site sans preflight Tailwind.
+// v3 (contrairement à v4) : `scale`/`rotate`/`translate`/`skew` sont TOUS composés via la même
+// propriété `transform` unique (CSS n'avait pas encore de propriétés `scale`/`rotate`/`translate`
+// natives séparées) — voir COMPOSITE_BY_PREFIX ci-dessous, tous sur `property: 'transform'`.
 function transformFormula(): string {
-  return 'var(--tw-skew-x,) var(--tw-skew-y,)'
+  return (
+    'translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) ' +
+    'rotate(var(--tw-rotate, 0)) skewX(var(--tw-skew-x, 0)) skewY(var(--tw-skew-y, 0)) ' +
+    'scaleX(var(--tw-scale-x, 1)) scaleY(var(--tw-scale-y, 1))'
+  )
 }
 
 const FILTER_VARS = ['--tw-blur', '--tw-brightness', '--tw-contrast', '--tw-grayscale', '--tw-hue-rotate', '--tw-invert', '--tw-saturate', '--tw-sepia', '--tw-drop-shadow']
@@ -158,13 +89,14 @@ interface CompositeSpec {
 }
 
 const COMPOSITE_BY_PREFIX: Record<string, CompositeSpec> = {
-  scale: { cssVars: ['--tw-scale-x', '--tw-scale-y'], wrap: (v) => v, property: 'scale', formula: () => 'var(--tw-scale-x, 1) var(--tw-scale-y, 1)' },
-  'scale-x': { cssVars: ['--tw-scale-x'], wrap: (v) => v, property: 'scale', formula: () => 'var(--tw-scale-x, 1) var(--tw-scale-y, 1)' },
-  'scale-y': { cssVars: ['--tw-scale-y'], wrap: (v) => v, property: 'scale', formula: () => 'var(--tw-scale-x, 1) var(--tw-scale-y, 1)' },
-  'translate-x': { cssVars: ['--tw-translate-x'], wrap: (v) => v, property: 'translate', formula: () => 'var(--tw-translate-x, 0) var(--tw-translate-y, 0)' },
-  'translate-y': { cssVars: ['--tw-translate-y'], wrap: (v) => v, property: 'translate', formula: () => 'var(--tw-translate-x, 0) var(--tw-translate-y, 0)' },
-  'skew-x': { cssVars: ['--tw-skew-x'], wrap: (v) => `skewX(${v})`, property: 'transform', formula: transformFormula },
-  'skew-y': { cssVars: ['--tw-skew-y'], wrap: (v) => `skewY(${v})`, property: 'transform', formula: transformFormula },
+  scale: { cssVars: ['--tw-scale-x', '--tw-scale-y'], wrap: (v) => v, property: 'transform', formula: transformFormula },
+  'scale-x': { cssVars: ['--tw-scale-x'], wrap: (v) => v, property: 'transform', formula: transformFormula },
+  'scale-y': { cssVars: ['--tw-scale-y'], wrap: (v) => v, property: 'transform', formula: transformFormula },
+  rotate: { cssVars: ['--tw-rotate'], wrap: (v) => v, property: 'transform', formula: transformFormula },
+  'translate-x': { cssVars: ['--tw-translate-x'], wrap: (v) => v, property: 'transform', formula: transformFormula },
+  'translate-y': { cssVars: ['--tw-translate-y'], wrap: (v) => v, property: 'transform', formula: transformFormula },
+  'skew-x': { cssVars: ['--tw-skew-x'], wrap: (v) => v, property: 'transform', formula: transformFormula },
+  'skew-y': { cssVars: ['--tw-skew-y'], wrap: (v) => v, property: 'transform', formula: transformFormula },
 
   blur: { cssVars: ['--tw-blur'], wrap: (v) => (v ? `blur(${v})` : ''), property: 'filter', formula: filterFormula },
   brightness: { cssVars: ['--tw-brightness'], wrap: (v) => `brightness(${v})`, property: 'filter', formula: filterFormula },
@@ -219,8 +151,7 @@ function declarationsFor(base: string): string[] | null {
     }
 
     if (!generated.themeToken) return null
-    const suffix = extractSuffix(withoutOpacity, generated.prefix, generated.negative)
-    let value = computeValue(entry, generated, suffix)
+    let value = generated.negative ? `-${generated.themeToken}` : generated.themeToken
     if (opacityPct != null && entry.type === 'color') {
       value = `color-mix(in srgb, ${value} ${opacityPct}%, transparent)`
     }
@@ -230,10 +161,7 @@ function declarationsFor(base: string): string[] | null {
 
     if (entry.id === 'fontSize') {
       const decls = [`font-size: ${value}`]
-      if (generated.secondaryValue) {
-        const lhValue = suffix ? `var(--text-${suffix}--line-height, ${generated.secondaryValue})` : generated.secondaryValue
-        decls.push(`line-height: ${lhValue}`)
-      }
+      if (generated.secondaryValue) decls.push(`line-height: ${generated.secondaryValue}`)
       return decls
     }
 

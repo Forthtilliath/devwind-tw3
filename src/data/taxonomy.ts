@@ -670,9 +670,9 @@ export const taxonomy: TaxonomyEntry[] = [
     category: 'Transitions & Transforms',
     subcategory: 'Rotate',
     prefixes: ['rotate'],
-    // Propriété CSS native (v4) : plus besoin de composer via `transform` comme scale/translate
-    // (contrairement à v3), voir live-style.ts.
-    cssProperties: { rotate: ['rotate'] },
+    // v3 : composé via `transform` (comme scale/translate/skew), pas de propriété native
+    // `rotate` séparée (ça, c'est v4) — voir COMPOSITE_BY_PREFIX dans live-style.ts.
+    cssProperties: { rotate: ['transform'] },
     themeKey: 'rotate',
     type: 'scale',
     supportsArbitrary: true,
