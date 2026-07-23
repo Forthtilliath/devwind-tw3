@@ -13,6 +13,9 @@ dist-test
 dist-ssr
 *.local
 
+# Notes de travail locales, jamais partagées (préférence utilisateur, tous projets)
+UPGRADES.md
+
 # Playwright (tests/e2e)
 /test-results/
 /playwright-report/
