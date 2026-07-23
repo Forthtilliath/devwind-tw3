@@ -1,79 +1,59 @@
-# Idées d'amélioration — DevWind
+# Idées d'amélioration — DevWind v3
 
-Liste brute d'idées, en tout genre, pas encore priorisées. À trier/discuter avant de piocher dedans.
+Fork de [devwind](https://github.com/Forthtilliath/devwind) (qui cible Tailwind v4), adapté pour cibler **Tailwind v3**. Historique git repartie de zéro (voir le repo v4 pour l'historique complet du développement des fonctionnalités communes) ; ce document reprend l'état des lieux au moment du fork, ajusté pour v3.
 
-## Couverture de la taxonomie (Phase B) — ✅ fait
+## Couverture de la taxonomie — ✅ fait
 
-- ~~Catégories manquantes~~ : Sizing, Bordures & Radius (+ `ring`/`divide`), Effets, Filtres (+ `backdrop-*`), Transitions & Transforms, Interactivité — ajoutées (~35 nouvelles entrées `taxonomy.ts`, ~5350 classes générées sur le thème par défaut v4).
-- ~~`line-height` associé à `fontSize`~~ — `GeneratedClass.secondaryValue` porte le line-height apparié, utilisé par `live-style.ts` (référencé via `var(--text-{clé}--line-height, ...)` sur les sites v4 réels).
-- Ambiguïté théorique sur préfixes partagés (`text-`, `border-`) si un thème custom nomme une clé de couleur comme une clé de taille — toujours non traité, edge case qui ne s'applique qu'à un thème personnalisé (hors scope, thème par défaut uniquement).
-- **`tracking-*` (letter-spacing) et `leading-*` (line-height autonome) absents de la taxonomie** — découvert en inspectant la vraie sortie compilée v4 (`--tracking-wide`, `--tw-leading`) : ce sont de vraies catégories Typography qu'on n'a pas encore ajoutées.
-- **Utilitaires v4-only absents** : `mask-*`, `text-shadow-*`, `field-sizing-*`, container queries (`@container`, variants `@sm:`...), variants `not-*`/`starting:`. Comme on cible v4 maintenant, ce sont de vrais trous de couverture, pas juste des extras — à prioriser si on veut une couverture v4 complète.
-- **`ring`/`shadow` restent simplifiés** (`box-shadow` direct, pas composé) — confirmé en inspectant la vraie sortie v4 : le vrai mécanisme est encore plus complexe qu'imaginé (5 sources de shadow superposées : `--tw-inset-shadow`, `--tw-inset-ring-shadow`, `--tw-ring-offset-shadow`, `--tw-ring-shadow`, `--tw-shadow`). Combiner ring+shadow simultanément sur le même élément ne sera pas fidèle visuellement (cas rare, simplification volontaire assumée).
+- Table `taxonomy.ts` complète (~35 entrées couvrant Spacing, Sizing, Couleurs, Typography, Layout, Bordures & Radius, Effets, Filtres, Transitions & Transforms, Interactivité), dataset généré automatiquement (`scripts/generate-tailwind-data.ts`) via `resolveConfig` de Tailwind v3 — jamais de classe tapée en dur. ~4800 classes générées sur le thème par défaut v3.
+- `line-height` associé à `fontSize` — `GeneratedClass.secondaryValue` porte le line-height apparié, utilisé littéralement par `live-style.ts` (v3 n'a pas de variable CSS runtime à référencer, contrairement à v4).
+- Ambiguïté théorique sur préfixes partagés (`text-`, `border-`) si un thème custom nomme une clé de couleur comme une clé de taille — non traité, edge case qui ne s'applique qu'à un thème personnalisé (hors scope, thème par défaut uniquement).
+- **`ring`/`shadow` restent simplifiés** (`box-shadow` direct, pas composé avec le vrai mécanisme multi-sources de Tailwind) — simplification volontaire assumée, cas de composition simultanée ring+shadow rare.
 
-## Synthèse CSS live (live-style.ts) — ✅ fait
+## Synthèse CSS live (`live-style.ts`) — ✅ fait
 
-- ~~`dark:` non synthétisé~~ — double émission (`@media (prefers-color-scheme: dark)` ET `:where(.dark, .dark *)`) plutôt que détection de stratégie : marche quelle que soit la stratégie réelle du site, sans heuristique DOM.
-- ~~`group-*`, `peer-*`, `aria-*`, `data-*`, `has-*` non synthétisés~~ — tous purement déclaratifs via combinateurs/sélecteurs CSS standards (`.group:hover .classe`, `.peer:hover ~ .classe`, `[aria-checked="true"]`, `:has(...)`, `[data-key="value"]`), pas besoin d'inspecter le DOM.
-- ~~Valeurs arbitraires combinées à un modificateur d'opacité~~ — `bg-red-500/80` et `bg-[#ff0000]/50` synthétisés via `color-mix()` ; corrigé aussi côté `class-parser.ts` (sinon l'ancienne classe n'était jamais retirée au changement de couleur).
-- ~~Pas de nettoyage des règles injectées~~ — plafond simple (purge des plus anciennes au-delà de 300 règles).
-- ~~Transform/filter/backdrop-filter approximatifs~~ — **corrigé pour coller à la vraie sortie compilée Tailwind v4** (vérifié avec `@tailwindcss/cli`, pas deviné) : `rotate`/`scale`/`translate` sont maintenant des propriétés CSS natives séparées (v4 a arrêté de les composer via `transform` comme en v3), seul `skew` reste sur `transform` (formule réduite). Vérifié que `scale-110` + `rotate-45` coexistent bien (propriétés CSS distinctes, `getComputedStyle` confirme les deux + le `transform` matriciel combiné).
-- **Thème du site pris en compte automatiquement (v4)** — les classes à jetons nommés (couleurs, radius, blur, taille/poids de police, easing, animation) référencent maintenant `var(--color-red-500, <notre-valeur-par-défaut>)` etc. plutôt qu'une valeur littérale : si le site définit réellement cette variable ailleurs sur la page (vrai thème v4), on hérite automatiquement de SA valeur, sinon on retombe sur notre thème par défaut — pas besoin d'un scan de détection séparé, le fallback CSS natif fait le travail. Idem pour `padding`/`margin`/`gap`/`width`/`height`/`translate` qui multiplient une variable `--spacing` partagée (`calc(var(--spacing, 0.25rem) * N)`) comme le vrai moteur v4.
-- **Limite découverte** : si le site configure un préfixe Tailwind (`@import "tailwindcss" prefix(tw)`), v4 préfixe AUSSI les noms de variables (`--tw-color-red-500` au lieu de `--color-red-500`) — notre référence `var(--color-*, ...)` ne matche alors plus rien sur ce site précis, on retombe silencieusement sur notre thème par défaut (dégradation correcte, mais pas de détection de la vraie valeur dans ce cas).
+- `dark:` — double émission (`@media (prefers-color-scheme: dark)` ET `:where(.dark, .dark *)`), avec l'ordre d'émission qui suit la stratégie réellement active sur la page (`.dark` présent sur `<html>`/`<body>` ou non) pour gagner face à du vrai CSS du site à spécificité égale.
+- `group-*`, `peer-*`, `aria-*`, `data-*`, `has-*` — tous purement déclaratifs via combinateurs/sélecteurs CSS standards, pas besoin d'inspecter le DOM.
+- Modificateur d'opacité sur les couleurs (`bg-red-500/80`, `bg-[#ff0000]/50`) — synthétisé via `color-mix()`.
+- Plafond simple sur les règles injectées (purge des plus anciennes au-delà de 300).
+- **Propriétés composites (transform/filter/backdrop-filter), fidèles à v3** : `scale`/`rotate`/`translate`/`skew` sont TOUS composés via une seule propriété `transform` partagée (contrairement à v4 qui les a séparées en propriétés natives) — chaque classe pose sa variable `--tw-*` et réaffirme la formule complète, permettant à n'importe quelle combinaison de classes de fonctionner par cascade. Vérifié en reprenant l'implémentation originale de devwind (avant sa migration v4, cf. son historique git commit `6b246d1`), qui s'est avérée être un modèle v3 correct.
+- **Valeurs littérales** : contrairement à v4 (variables CSS `@theme` runtime avec fallback), Tailwind v3 compile chaque classe avec sa valeur de thème inlinée en dur — pas de détection de thème custom du site possible sans parser son CSS compilé (hors scope).
 
 ## Accessibilité — ✅ fait
 
-- **Indicateur de contraste WCAG** — pendant l'édition, un badge affiche le ratio texte/fond de l'élément sélectionné (`AA`/`AAA`/✗ selon les seuils WCAG 2.1, texte large pris en compte). Dans les popovers Background/Texte, chaque couleur candidate affiche aussi son ratio en aperçu (comparé à l'AUTRE couleur actuelle de l'élément), avant même de cliquer dessus.
-- **Bug découvert et corrigé en vérifiant la fonctionnalité** : `getComputedStyle` ne renormalise plus une couleur `oklch(...)`/`lab(...)` en `rgb(...)` dans les navigateurs récents — or le thème par défaut Tailwind v4 est entièrement en OKLCH. Le badge se serait tu silencieusement pour la quasi-totalité des couleurs. Corrigé en convertissant via un canvas 2D détaché (`fillStyle` + `getImageData`) plutôt qu'en lisant la sérialisation CSSOM.
+- **Indicateur de contraste WCAG** — pendant l'édition, un badge affiche le ratio texte/fond de l'élément sélectionné (`AA`/`AAA`/✗ selon les seuils WCAG 2.1, texte large pris en compte). Dans les popovers Background/Texte, chaque couleur candidate affiche aussi son ratio en aperçu avant même de cliquer dessus. Conversion couleur → RGB via canvas 2D détaché (`fillStyle` + `getImageData`), robuste à n'importe quelle syntaxe CSS (utile même si v3 est hex par défaut, un site peut définir ses propres couleurs custom dans n'importe quelle syntaxe).
 
 ## Édition / historique
 
-- ~~Pas de vue d'ensemble des modifications de la page~~ — historique de session accessible depuis l'en-tête (icône 🕘 + compteur) : chaque ajout/retrait de classe, sur N'IMPORTE QUEL élément de la page (pas juste la sélection courante), est loggué avec un descriptif léger de l'élément touché (`tag#id` ou `tag:nth-of-type(n)`, jamais basé sur ses classes puisque ce sont justement elles qui changent) et un diff `+classe`/`−classe`. Copiable en texte brut, vidable, plafonné à 300 entrées. Exploite le `ClassChangeResult { before, after }` qui existait déjà côté `class-diff.ts` sans être utilisé.
-- **Pas fait** : undo/redo à proprement parler (annuler une entrée précise de l'historique) — la liste ci-dessus est en lecture seule, un clic ne réapplique/n'annule rien pour l'instant.
-- Pas de multi-sélection (éditer plusieurs éléments similaires en même temps, ex. tous les `<li>` d'une liste).
-- Pas de réordonnancement/tri manuel des chips de classes actives (ordre = ordre d'apparition dans `className`).
-- Édition de classes custom limitée à toggle on/off (pas de rename, pas d'édition de la valeur CSS associée).
+- ~~Pas de vue d'ensemble des modifications de la page~~ — historique de session accessible depuis l'en-tête (icône 🕘 + compteur) : chaque ajout/retrait de classe, sur N'IMPORTE QUEL élément de la page, est loggué avec un descriptif léger de l'élément touché et un diff `+classe`/`−classe`. Copiable, vidable, plafonné à 300 entrées.
+- **Pas fait** : undo/redo à proprement parler (annuler une entrée précise de l'historique) — la liste est en lecture seule.
+- Pas de multi-sélection, pas de réordonnancement des chips, édition de classes custom limitée à toggle on/off.
 
-## Panneau / UX — ✅ fait (sauf mention contraire)
+## Panneau / UX — ✅ fait
 
-- ~~Pas de dark/light theme~~ — variables CSS (`--dw-*`), suit `prefers-color-scheme` par défaut, toggle 🌓/☀️/🌙 dans l'en-tête (persisté dans `chrome.storage.local`, appliqué avant le premier rendu pour éviter un flash).
-- ~~Pas de raccourcis clavier~~ — `Ctrl/Cmd+F` focus la recherche ; `↑`/`↓` naviguent la liste d'un popover ouvert (`Entrée` pour choisir), désactivés dans un champ texte.
-- ~~Pas de "classes récemment utilisées"~~ — dernières valeurs choisies via un picker (pas les valeurs arbitraires), persistées dans `chrome.storage.local`, réappliquables en un clic dans le contexte de variant courant.
-- ~~Sélecteur de côté en texte brut~~ — icônes SVG 14×14 (carré plein/côté/coin en surbrillance) pour tous les préfixes multiples (padding/margin/gap/border/rounded/scale/translate/skew), texte en secours pour un préfixe non cartographié.
-- ~~Pas d'indicateur de classe non synthétisée~~ — badge ⚠ sur le chip concerné (avec tooltip explicatif) quand `live-style` ne peut pas synthétiser d'effet visuel (variant non géré) ; se nettoie automatiquement si la classe est retirée/remplacée.
-- ~~Export limité à "copier les classes"~~ — menu Copier avec un second format JSX (`className="…"`).
-- ~~Rail de catégories trop étroit, largeur fixe~~ — redimensionnable par glisser-déposer (poignée entre le rail et le contenu, bornée 72–220px, double-clic pour réinitialiser), largeur mémorisée dans `chrome.storage.local`. Largeur par défaut relevée à 150px (mesurée pour que le plus long libellé, "Transitions & Transforms", tienne sur une ligne).
-- ~~Libellés de catégorie/sous-catégorie mélangeant français et anglais~~ (`taxonomy.ts` avait été rempli sans convention unique, ex. `Largeur`/`Width`, `Taille`/`Height`) — sélecteur FR/EN dans l'en-tête (`devwind-lang-btn`), persisté. Traductions dans `devpanel/i18n.ts`, une table séparée qui habille l'affichage sans toucher à `taxonomy.ts` (qui reste la clé de regroupement, peu importe sa langue d'origine).
+- Thème clair/sombre du panneau, raccourcis clavier (`Ctrl/Cmd+F`, flèches dans les popovers), classes récemment utilisées, icônes de côté pour les préfixes multiples, indicateur de classe non synthétisée, export texte brut/JSX.
+- Rail de catégories redimensionnable par glisser-déposer (72–220px, double-clic pour réinitialiser), largeur par défaut 150px pour que tous les libellés tiennent sur une ligne.
+- Libellés de catégorie/sous-catégorie en français ou anglais (toggle FR/EN dans l'en-tête, persisté) — table de traduction dans `devpanel/i18n.ts`, séparée de `taxonomy.ts`.
 
 ## Picker / sélection d'élément — ✅ fait
 
-- ~~Pas de breadcrumb DOM~~ — fil d'ariane des ancêtres (parent direct → `<body>`, plafonné à 8 niveaux) dans le devpanel, cliquable pour remonter sans re-cliquer sur la page.
-- ~~Pas de navigation clavier~~ — flèches (`↑` parent, `↓` premier enfant, `←`/`→` frères) dans le devpanel, désactivées si le focus est dans un champ texte.
-- ~~Pas de mode "verrouiller la sélection"~~ — bouton 🔒/🔓 dans l'en-tête : suspend le picking (survol/clic sur la page ignorés, interactions normales possibles) sans perdre la sélection courante ; celle-ci reste modifiable via le fil d'ariane / le clavier pendant le verrouillage. Verrouillable aussi directement depuis la page : `Échap` pendant le picking verrouille la sélection courante (icône du panneau synchronisée via un nouveau message `LOCKED_CHANGED`), pratique pour interagir avec la page sans repasser par la fenêtre du panneau.
-- ~~Détection de préfixe de site : faux positif sur `after:`/`before:`~~ — ces variants (et une bonne partie des pseudo-classes/pseudo-éléments standards Tailwind : `checked`, `placeholder`, `marker`, `selection`, `not-*`...) manquaient à la liste des variants connus de `detectSitePrefix`, donc un site les utilisant ≥3 fois se voyait attribuer à tort un "préfixe" `after:`/`before:`. Liste étendue.
+- Fil d'ariane des ancêtres, navigation clavier, mode verrouillé (bouton 🔒 ou `Échap` directement sur la page) pour interagir avec la page sans perdre la sélection.
 
 ## Scan CSS — ✅ fait
 
-- ~~Pas de fallback `fetch()` pour les feuilles cross-origin~~ — les feuilles qui lèvent une erreur CSSOM sont récupérées via `fetch(href, {mode:'cors'})` puis parsées dans une `CSSStyleSheet` détachée (plus de restriction cross-origin une fois le texte local) ; celles qui refusent CORS restent listées comme non scannables.
-- ~~Pas de re-scan si le site charge du CSS dynamiquement~~ — `MutationObserver` (debounced 300ms) sur l'ajout de `<link rel=stylesheet>`/`<style>`, re-scanne et pousse le résultat à jour à la fenêtre devpanel automatiquement.
+- Fallback `fetch()` pour les feuilles cross-origin autorisant CORS, re-scan automatique (debounced) si le site charge du CSS dynamiquement.
 
-## Compatibilité Tailwind — ✅ fait (sauf mention contraire)
+## Compatibilité Tailwind — ✅ fait (v3)
 
-- ~~Dataset ciblé Tailwind v3~~ — migré vers Tailwind v4 (`tailwindcss/defaultTheme` + résolveur maison, `resolveConfig` n'existe plus en v4). Couleurs par défaut désormais en OKLCH plutôt qu'en hex.
-- ~~Pas de prise en compte d'un thème customisé du site~~ — voir section "Synthèse CSS live" ci-dessus : référencement direct des vraies variables `@theme` v4 avec fallback, plus besoin de scan de détection séparé.
-- ~~Option `prefix` de Tailwind non gérée~~ — **partiellement traité**. Détection heuristique d'un préfixe de site (`detectSitePrefix` dans `css-scanner.ts`) affichée en info-bulle dans la section Custom du panneau. Découverte importante en implémentant : la syntaxe du préfixe a changé en v4, ce n'est plus un tiret collé (`tw-bg-red-500` en v3) mais un variant en tête façon `tw:bg-red-500` — du coup une classe préfixée reste déjà reconnue à l'affichage aujourd'hui (le variant en tête ne gêne pas le matching de la base). **Pas encore traité** : remplacer une classe préfixée depuis le panneau (le variant "tw" en tête n'est pas reconnu comme faisant partie du "slot" par `class-diff.ts`, donc l'ancienne classe n'est pas retirée) et synthétiser une classe préfixée avec d'autres variants (`planVariants` dans `live-style.ts` ne reconnaît pas encore le préfixe détecté comme un variant à ignorer).
+- ~~Dataset ciblé Tailwind v4~~ — ce fork cible Tailwind v3 (`resolveConfig`, couleurs hex par défaut). Voir [devwind](https://github.com/Forthtilliath/devwind) pour la version v4 (OKLCH, variables `@theme`).
+- **Pas dans cette version** : prise en compte d'un thème customisé du site (v3 ne l'expose pas en variables CSS runtime, il faudrait parser son CSS compilé — hors scope) ; détection de préfixe de site (syntaxe v3 `tw-bg-red-500`, tiret collé — algorithme différent de la détection v4 `tw:bg-red-500`, retirée de ce fork plutôt qu'adaptée pour ce premier jet, pourrait être ajoutée si le besoin se présente).
 
-## Qualité / process — ✅ fait (sauf e2e en CI, détaillé ci-dessous)
+## Qualité / process — ✅ fait
 
-- ~~Dataset content-script alourdi par des champs d'affichage inutiles~~ — `category`/`subcategory` (utilisés seulement par le devpanel pour le regroupement visuel, jamais pour la reconnaissance/synthèse de classes) retirés du JSON embarqué dans le content script via une version allégée dédiée (`tailwind-classes-slim.json`). `content/main.js` passe de ~1,47 Mo à ~929 Ko minifié (~58 Ko gzip).
-- ~~Pas de suite de tests automatisés versionnée~~ — `tests/e2e/` (Playwright + fixtures HTML committées) : parcours principal (sélection, édition depuis la recherche, retrait de classe, scan CSS custom) et fonctionnalités "site-aware" (préfixe custom + variables de thème, ordre des règles `dark:`). `npm run test:e2e` build un `dist-test/` dédié (jamais `dist/`) puis lance la suite dans un vrai Chromium avec l'extension chargée. Ouvrir la fenêtre devpanel sans geste utilisateur (que Playwright ne simule pas de façon fiable) passe par un hook (`self.__devwindTestToggle`) + `host_permissions` sur `localhost`, actifs uniquement en mode `test` (`import.meta.env.MODE`) — **éliminés du bundle de production**, vérifié en cherchant leur absence dans `dist/` après un build normal.
-- ~~Pas d'icônes custom~~ — icônes générées (rafale de vent stylisée, dégradé indigo assorti au thème du panneau) aux 4 tailles requises (16/32/48/128), référencées dans `manifest.config.ts` (`icons` + `action.default_icon`).
-- ~~Pas de README~~ — réécrit entièrement (le fichier existant était le squelette par défaut du scaffold Vite, jamais adapté au projet).
-- ~~Pas de CI~~ — GitHub Actions (`.github/workflows/ci.yml`) : lint (`oxlint`) + build complet (`tsc -b`, qui type-check aussi `tests/e2e/`) sur push/PR vers `main`. **Volontairement pas de Playwright en CI** dans cette passe : tester une extension Chrome en CI demande un Chromium headed (xvfb) et un profil persistant, plus de mise en place que "lint/build automatique" ne le demandait à l'origine — reste une amélioration possible si le besoin se fait sentir.
+- Suite de tests e2e Playwright (`tests/e2e/`) : parcours principal (sélection, édition, retrait de classe, scan CSS custom), historique de session, redimensionnement du rail, Échap→verrouillage, toggle FR/EN, composition `transform` v3 (scale+rotate simultanés).
+- Icônes générées aux 4 tailles requises (dégradé ambre, pour se distinguer visuellement de la version v4 en indigo si les deux extensions sont chargées en même temps).
+- README, CI (lint + build sur push/PR), release automatisée (`npm version patch/minor/major` → tag → build + zip + Release GitHub avec notes catégorisées par type de commit).
 
-## Nouvelles idées — ✅ fait (sauf mode v3, hors scope assumé)
+## Nouvelles idées
 
-- ~~Navigateur de variables de thème~~ — nouvelle section "Thème détecté sur ce site" (`ThemeVariablesSection.tsx`, `core/theme-scanner.ts`) : liste les vraies variables `--color-*`/`--radius-*`/`--spacing`/etc. définies sur `:root` du site (pas notre thème par défaut bundlé), avec filtre texte et clic pour copier `var(--nom)`. Filtré à une liste d'espaces de noms Tailwind v4 connus pour ignorer le bruit des autres custom properties du site.
-- ~~`--tw-*` (préfixe custom) et variables de thème~~ — `live-style.ts` et le navigateur de variables ci-dessus utilisent désormais le préfixe de site détecté (`detectSitePrefix`) pour construire les bons noms de variables (`--tw-color-red-500` au lieu de `--color-red-500`), vérifié en compilant avec `@tailwindcss/cli --prefix tw` : le préfixe s'insère après `--` pour TOUTES les variables de `@theme`, mais pas pour les variables internes `--tw-*` que Tailwind utilise pour composer transform/filter (celles-ci ne viennent pas de `@theme`). Détection rendue synchrone (`detectSitePrefix()` seul, pas tout `scanCustomClasses()`) pour éviter une course où une classe appliquée juste après la sélection utiliserait encore le mauvais nom de variable.
-- ~~Détection auto de la stratégie dark réelle du site~~ — les deux règles synthétisées (`@media` + `.dark`) restent toutes les deux émises (fiable sans heuristique DOM), mais leur **ordre** dans la feuille injectée dépend maintenant de la présence d'une classe `.dark` sur `<html>`/`<body>` au moment de la synthèse : la règle correspondant à la stratégie réellement active est émise en dernier, pour gagner face à du vrai CSS du site à spécificité égale.
-- **Mode Tailwind v3 en option — écarté délibérément**, décision produit : plutôt que de faire grossir le dataset/bundle unique avec un second jeu de classes v3 (hex/rgb) à côté du v4 (oklch/variables), ou une détection de version runtime fragile, une extension séparée dédiée à v3 est jugée plus simple et plus propre si le besoin se présente un jour.
+- Réécrire `detectSitePrefix` pour la syntaxe de préfixe v3 (tiret collé) si le besoin d'un site préfixé se présente.
+- `tracking-*`/`leading-*` (letter-spacing / line-height autonome) absents de la taxonomie, comme dans le projet v4 d'origine.

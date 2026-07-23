@@ -1,20 +1,22 @@
-# DevWind
+# DevWind v3
 
 Extension Chrome pour éditer visuellement les classes Tailwind CSS de n'importe quel site, en direct dans le navigateur — dans l'esprit de l'ancienne extension Gimli (discontinuée), avec une meilleure organisation des classes et la prise en charge des classes custom du site.
 
-Cible **Tailwind CSS v4** (thème par défaut en OKLCH, variables CSS `@theme`, syntaxe de préfixe `tw:`...).
+Cible **Tailwind CSS v3** (thème par défaut résolu via `resolveConfig`, couleurs en hex, classes compilées avec leurs valeurs inlinées en dur — pas de variables CSS `@theme` runtime comme en v4).
+
+Fork de [devwind](https://github.com/Forthtilliath/devwind), qui cible Tailwind v4 — projet séparé plutôt qu'un mode bascule, pour ne pas mélanger deux jeux de classes (v3 hex vs v4 oklch/variables) dans le même bundle.
 
 ## Fonctionnalités
 
 - **Picker visuel** : clic sur l'icône ou `Ctrl+Shift+K` pour activer le picker, clic sur un élément de la page pour sélectionner ce qu'on veut éditer. Fil d'ariane des ancêtres, navigation clavier (flèches), mode verrouillé pour interagir avec la page sans perdre la sélection (bouton 🔒 ou `Échap` directement sur la page).
 - **Panneau dans une fenêtre séparée**, déplaçable indépendamment (utile sur un second écran) : classes regroupées par catégorie (couleurs, spacing, typographie, bordures, effets, filtres, transitions, interactivité...) dans un rail redimensionnable, recherche transversale, valeurs récentes, export en texte brut ou JSX.
 - **Historique de session** : chaque ajout/retrait de classe, sur n'importe quel élément de la page (pas juste la sélection courante), est loggué avec un diff `+classe`/`−classe` — pratique pour retrouver l'ensemble des modifications faites à différents endroits avant de finaliser. Copiable, vidable.
-- **Synthèse CSS live** : une classe choisie dans le panneau produit un effet visuel immédiat même si elle est absente du CSS déjà chargé sur la page (build de prod purgé) — variants `hover:`, `dark:`, breakpoints, `group-*`/`peer-*`, `aria-*`, `has-*`, `data-*`, opacité de couleur (`bg-red-500/80`), propriétés composites (transform/filter/backdrop-filter) synthétisées fidèlement au vrai moteur v4.
-- **Détection du thème réel du site** : les classes synthétisées référencent les vraies variables CSS `@theme` du site (avec repli sur notre thème par défaut), y compris si le site utilise un préfixe Tailwind custom (`tw:bg-red-500` → `--tw-color-red-500`).
-- **Navigateur de variables de thème** : liste les `--color-*`/`--radius-*`/`--spacing`/etc. réellement définis sur `:root` du site.
+- **Synthèse CSS live** : une classe choisie dans le panneau produit un effet visuel immédiat même si elle est absente du CSS déjà chargé sur la page (build de prod purgé) — variants `hover:`, `dark:`, breakpoints, `group-*`/`peer-*`, `aria-*`, `has-*`, `data-*`, opacité de couleur (`bg-red-500/80`), propriétés composites (transform/filter/backdrop-filter, toutes composées via une seule propriété `transform` partagée comme le vrai moteur v3) synthétisées fidèlement.
 - **Scan CSS** : détecte les classes custom (non-Tailwind) utilisées sur la page en parsant les feuilles de style chargées (avec repli `fetch()` pour le cross-origin autorisant CORS), re-scanne automatiquement si le site charge du CSS dynamiquement.
 - **Contrôle de contraste WCAG** : ratio texte/fond de l'élément sélectionné (AA/AAA), aperçu du contraste par couleur candidate avant de l'appliquer.
 - Thème clair/sombre du panneau, libellés de catégorie en français ou anglais (toggle FR/EN, pas de mélange), raccourcis clavier, indicateur de classe non synthétisable.
+
+**Pas dans cette version** (spécifiques à v4, non pertinents ou non adaptés pour v3) : navigateur de variables de thème (v3 n'expose pas son thème en CSS runtime), détection de préfixe de site (syntaxe de préfixe différente en v3, `tw-bg-red-500` au lieu de `tw:bg-red-500`).
 
 Détail complet des fonctionnalités et idées futures : [UPGRADES.md](UPGRADES.md).
 
@@ -45,7 +47,7 @@ npm run lint    # oxlint
 npm run build   # build de production dans dist/
 ```
 
-Le dataset de classes (`src/data/generated/`) est régénéré automatiquement avant chaque build (`npm run generate:tw-data`) à partir du thème par défaut Tailwind v4 croisé avec la taxonomie éditée à la main (`src/data/taxonomy.ts`) — jamais de classe tapée en dur.
+Le dataset de classes (`src/data/generated/`) est régénéré automatiquement avant chaque build (`npm run generate:tw-data`) à partir du thème par défaut Tailwind v3 (`resolveConfig`) croisé avec la taxonomie éditée à la main (`src/data/taxonomy.ts`) — jamais de classe tapée en dur.
 
 ### Structure
 
