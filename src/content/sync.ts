@@ -107,6 +107,7 @@ async function runCssScan() {
     type: 'CUSTOM_SCAN_RESULT',
     found: Array.from(result.found.entries()),
     unscannable: result.unscannable,
+    detectedPrefix: result.detectedPrefix,
   })
 }
 

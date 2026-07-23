@@ -19,6 +19,54 @@ function isRecognizedTailwindClass(className: string): boolean {
   return matchTaxonomy(base) !== null
 }
 
+/**
+ * Détection heuristique d'un préfixe de site (option `prefix` de Tailwind v3 — le préfixe est
+ * concaténé DIRECTEMENT devant le nom de classe, ex. `tw-bg-red-500`, contrairement à v4 où
+ * c'est un variant supplémentaire en tête `tw:bg-red-500`). Purement informatif : une classe
+ * préfixée n'est PAS reconnue par `matchTaxonomy` (le préfixe fait partie intégrante du nom,
+ * ce n'est pas juste un variant à ignorer comme en v4), donc elle reste affichée comme "Custom"
+ * tant que le remplacement/l'édition prefix-aware n'est pas implémenté (voir UPGRADES.md).
+ *
+ * Algorithme : pour chaque classe non reconnue telle quelle, on essaie tous les points de
+ * coupure possibles (`candidat = début`, `reste = fin`) et on retient les candidats dont le
+ * reste correspond à une vraie classe Tailwind générée — `matchTaxonomy` (validé contre le
+ * dataset réel) écarte déjà l'immense majorité des coupures fantaisistes ; le seuil "≥3
+ * occurrences du même candidat" apporte une sécurité statistique supplémentaire contre une
+ * coïncidence isolée.
+ */
+export function detectSitePrefix(doc: Document = document): string | null {
+  const candidates = new Map<string, number>()
+  for (const el of Array.from(doc.querySelectorAll('[class]'))) {
+    for (const raw of el.className.toString().split(/\s+/).filter(Boolean)) {
+      const { base } = splitVariants(raw)
+      if (matchTaxonomy(base) !== null) continue // déjà reconnue telle quelle, rien à chercher
+
+      const isNegative = base.startsWith('-')
+      const working = isNegative ? base.slice(1) : base
+
+      for (let i = 1; i < working.length; i++) {
+        const prefixCandidate = working.slice(0, i)
+        if (!/^[a-z][a-z0-9-]*$/.test(prefixCandidate)) continue
+        const rest = working.slice(i)
+        if (!rest) continue
+        const restBase = isNegative ? `-${rest}` : rest
+        if (matchTaxonomy(restBase) !== null) {
+          candidates.set(prefixCandidate, (candidates.get(prefixCandidate) ?? 0) + 1)
+        }
+      }
+    }
+  }
+  let best: string | null = null
+  let bestCount = 0
+  for (const [candidate, count] of candidates) {
+    if (count > bestCount) {
+      best = candidate
+      bestCount = count
+    }
+  }
+  return bestCount >= 3 ? best : null
+}
+
 function extractClassSelectors(selectorText: string): string[] {
   const out: string[] = []
   for (const m of selectorText.matchAll(CLASS_SELECTOR_RE)) {
@@ -110,7 +158,7 @@ export async function scanCustomClasses(doc: Document = document): Promise<CssSc
     }),
   )
 
-  return { found, unscannable }
+  return { found, unscannable, detectedPrefix: detectSitePrefix(doc) }
 }
 
 function ruleListHasClass(rules: CSSRuleList, target: string): boolean {

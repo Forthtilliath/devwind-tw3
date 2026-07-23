@@ -119,7 +119,7 @@ export const useDevPanelStore = create<DevPanelState>((set, get) => ({
           })
           return
         case 'CUSTOM_SCAN_RESULT':
-          set({ customScan: { found: new Map(message.found), unscannable: message.unscannable } })
+          set({ customScan: { found: new Map(message.found), unscannable: message.unscannable, detectedPrefix: message.detectedPrefix } })
           return
         case 'CHANGE_LOG_UPDATED':
           set({ changeLog: message.entries })

@@ -89,6 +89,9 @@ export interface CustomClassInfo {
 export interface CssScanResult {
   found: Map<string, string[]>
   unscannable: string[]
+  /** Préfixe de site détecté par heuristique (option `prefix` de Tailwind v3), informatif
+   * uniquement — voir `detectSitePrefix` dans css-scanner.ts. */
+  detectedPrefix: string | null
 }
 
 // --- Historique des modifications de la session (toute la page, pas juste l'élément courant) ---
@@ -137,7 +140,7 @@ export type SyncFromContent =
   | { type: 'ELEMENT_SELECTED'; tagName: string; classes: string[]; ancestors: AncestorInfo[]; colors: ElementColors }
   | { type: 'ELEMENT_CLEARED' }
   | { type: 'CLASSES_UPDATED'; classes: string[]; unsupportedClass?: string | null; colors: ElementColors }
-  | { type: 'CUSTOM_SCAN_RESULT'; found: [string, string[]][]; unscannable: string[] }
+  | { type: 'CUSTOM_SCAN_RESULT'; found: [string, string[]][]; unscannable: string[]; detectedPrefix: string | null }
   | { type: 'CHANGE_LOG_UPDATED'; entries: ChangeLogEntry[] }
   | { type: 'LOCKED_CHANGED'; locked: boolean }
 

@@ -27,6 +27,14 @@ export default function CustomClassesSection({ activeClasses }: CustomClassesSec
             {customScan.unscannable.length} feuille(s) non scannable(s)
           </span>
         )}
+        {customScan.detectedPrefix && (
+          <span
+            className="devwind-badge"
+            title="Détecté par heuristique : les classes de ce site semblent préfixées (option `prefix` de Tailwind). Le préfixe fait partie intégrante du nom de classe en v3 (ex. `tw-bg-red-500`), donc ces classes ne sont pas reconnues comme du Tailwind standard — elles restent listées ici en tant que classes custom plutôt que d'apparaître dans les catégories."
+          >
+            préfixe détecté : {customScan.detectedPrefix}
+          </span>
+        )}
       </summary>
       <div className="devwind-value-grid">
         {classNames.map((cls) => (
