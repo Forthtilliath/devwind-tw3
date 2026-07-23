@@ -56,6 +56,8 @@ const SUBCATEGORY_LABELS: Record<string, Record<Language, string>> = {
   Taille: { fr: 'Taille', en: 'Size' },
   Poids: { fr: 'Poids', en: 'Weight' },
   Alignement: { fr: 'Alignement', en: 'Alignment' },
+  Tracking: { fr: 'Espacement des lettres', en: 'Letter Spacing' },
+  Leading: { fr: 'Interligne', en: 'Line Height' },
   // Layout
   Display: { fr: 'Affichage', en: 'Display' },
   Position: { fr: 'Position', en: 'Position' },
