@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # tsc -b type-check aussi tests/e2e/ (cf. tsconfig.tests.json), sans avoir besoin de
+      # lancer Playwright ici : tester une extension Chrome en CI demande un Chromium headed
+      # (xvfb) et un profil persistant, pas encore mis en place — voir UPGRADES.md.
+      - name: Build
+        run: npm run build

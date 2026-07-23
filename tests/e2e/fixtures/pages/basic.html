@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fixture DevWind — parcours principal</title>
+    <style>
+      /* CSS écrit à la main, PAS un vrai build Tailwind : juste assez de règles réelles
+         (valeurs vérifiées dans src/data/generated/tailwind-classes.json) pour que
+         getComputedStyle() reflète vraiment les classes ci-dessous, sans dépendre d'un CDN
+         externe (déterministe, pas de dépendance réseau dans la suite de tests). */
+      .bg-red-500 { background-color: oklch(63.7% 0.237 25.331); }
+      .text-white { color: #fff; }
+      .px-4 { padding-left: 1rem; padding-right: 1rem; }
+      .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+      .rounded { border-radius: 0.25rem; }
+      .my-custom-btn {
+        border: 2px dashed rebeccapurple;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="target-btn" class="bg-red-500 text-white px-4 py-2 rounded my-custom-btn">Bouton de test</button>
+    <p id="target-p" class="text-left">Paragraphe de test.</p>
+
+    <!-- `after:`/`before:` sont de VRAIS variants Tailwind (pseudo-éléments), pas un préfixe de
+         site : 3+ occurrences ne doivent PAS déclencher la détection heuristique de préfixe
+         (detectSitePrefix dans css-scanner.ts) — régression couverte par un test dédié. -->
+    <div id="after-a" class="after:absolute">après A</div>
+    <div id="after-b" class="after:absolute">après B</div>
+    <div id="after-c" class="after:absolute">après C</div>
+  </body>
+</html>

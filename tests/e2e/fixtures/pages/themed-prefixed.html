@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fixture DevWind — préfixe de site + variables de thème</title>
+    <style>
+      /* Imite la sortie réelle de `@tailwindcss/cli --prefix tw` (vérifié empiriquement) :
+         les variables de thème sont toutes préfixées `--tw-*`. */
+      :root, :host {
+        --tw-color-red-500: oklch(63.7% 0.237 25.331);
+        --tw-color-emerald-500: oklch(69.6% 0.17 162.48);
+        --tw-color-blue-600: oklch(54.6% 0.245 262.881);
+        --tw-spacing: 0.3rem;
+        --tw-radius-lg: 0.75rem;
+        --unrelated-custom-var: 42px; /* ne doit PAS apparaître dans le navigateur de thème */
+      }
+      .tw\:bg-red-500 { background-color: var(--tw-color-red-500); }
+      .tw\:p-4 { padding: calc(var(--tw-spacing) * 4); }
+      .tw\:text-white { color: #fff; }
+      @media (hover: hover) {
+        .tw\:hover\:bg-blue-600:hover { background-color: var(--tw-color-blue-600); }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 3+ classes préfixées reconnues pour que detectSitePrefix() détecte "tw" -->
+    <div id="prefix-a" class="tw:bg-red-500 tw:p-4 tw:text-white tw:hover:bg-blue-600">Préfixe tw A</div>
+    <div id="prefix-b" class="tw:bg-red-500 tw:p-4">Préfixe tw B</div>
+    <div id="prefix-c" class="tw:bg-red-500 tw:p-4">Préfixe tw C</div>
+
+    <!-- Cible pour appliquer une classe SANS préfixe depuis le panneau : bg-emerald-500 n'a
+         aucune règle réelle ici, doit être synthétisée en référençant
+         var(--tw-color-emerald-500, ...) puisque le site a un préfixe "tw" détecté -->
+    <button id="target-btn">Cible édition</button>
+
+    <!-- Cible pour tester l'ordre des règles dark: synthétisées -->
+    <button id="dark-target">Cible dark</button>
+  </body>
+</html>

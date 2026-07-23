@@ -1,0 +1,945 @@
+:root {
+  --dw-bg: #18181b;
+  --dw-bg-subtle: #27272a;
+  --dw-border: #3f3f46;
+  --dw-border-strong: #52525b;
+  --dw-text: #e4e4e7;
+  --dw-text-muted: #a1a1aa;
+  --dw-text-dim: #71717a;
+  --dw-text-strong: #d4d4d8;
+  --dw-accent: #6366f1;
+  --dw-accent-strong: #4338ca;
+  --dw-accent-text: #a5b4fc;
+  --dw-danger: #f87171;
+  --dw-warn-bg: #78350f;
+  --dw-warn-text: #fde68a;
+  --dw-warn-border: #f59e0b;
+  --dw-shadow: rgba(0, 0, 0, 0.4);
+  --dw-swatch-border: rgba(255, 255, 255, 0.3);
+  color-scheme: dark;
+}
+
+/* Thème clair : appliqué explicitement (`data-theme="light"`, toggle dans le panneau) OU
+ * automatiquement via `prefers-color-scheme` tant que l'utilisateur n'a rien choisi. */
+:root[data-theme='light'] {
+  --dw-bg: #ffffff;
+  --dw-bg-subtle: #f4f4f5;
+  --dw-border: #e4e4e7;
+  --dw-border-strong: #d4d4d8;
+  --dw-text: #18181b;
+  --dw-text-muted: #52525b;
+  --dw-text-dim: #71717a;
+  --dw-text-strong: #27272a;
+  --dw-accent: #6366f1;
+  --dw-accent-strong: #4f46e5;
+  --dw-accent-text: #4338ca;
+  --dw-danger: #dc2626;
+  --dw-warn-bg: #fef3c7;
+  --dw-warn-text: #92400e;
+  --dw-warn-border: #f59e0b;
+  --dw-shadow: rgba(24, 24, 27, 0.15);
+  --dw-swatch-border: rgba(0, 0, 0, 0.2);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --dw-bg: #ffffff;
+    --dw-bg-subtle: #f4f4f5;
+    --dw-border: #e4e4e7;
+    --dw-border-strong: #d4d4d8;
+    --dw-text: #18181b;
+    --dw-text-muted: #52525b;
+    --dw-text-dim: #71717a;
+    --dw-text-strong: #27272a;
+    --dw-accent: #6366f1;
+    --dw-accent-strong: #4f46e5;
+    --dw-accent-text: #4338ca;
+    --dw-danger: #dc2626;
+    --dw-warn-bg: #fef3c7;
+    --dw-warn-text: #92400e;
+    --dw-warn-border: #f59e0b;
+    --dw-shadow: rgba(24, 24, 27, 0.15);
+    --dw-swatch-border: rgba(0, 0, 0, 0.2);
+    color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  background: var(--dw-bg);
+  color: var(--dw-text);
+}
+
+.devwind-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.devwind-panel--empty {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--dw-text-muted);
+}
+
+.devwind-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  flex-shrink: 0;
+}
+
+.devwind-panel__header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.devwind-copy-btn {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text-strong);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.devwind-copy-btn:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-panel__title {
+  font-weight: 600;
+  color: var(--dw-accent-text);
+}
+
+.devwind-theme-btn,
+.devwind-lang-btn,
+.devwind-lock-btn {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.devwind-theme-btn:hover,
+.devwind-lang-btn:hover,
+.devwind-lock-btn:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-lang-btn {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dw-text-strong);
+}
+
+.devwind-lock-btn--active {
+  background: var(--dw-warn-bg);
+  border-color: var(--dw-warn-border);
+}
+
+.devwind-changelog-btn {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.devwind-changelog-btn:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-changelog-btn__count {
+  background: var(--dw-accent-strong);
+  color: white;
+  border-radius: 999px;
+  font-size: 9px;
+  font-family: ui-monospace, Menlo, monospace;
+  padding: 0 5px;
+  line-height: 1.6;
+}
+
+/* Popover plus large que le défaut (220px), pour laisser respirer les diffs de classes. */
+.devwind-popover:has(.devwind-changelog) .devwind-popover__content {
+  width: 320px;
+}
+
+.devwind-changelog {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+}
+
+.devwind-changelog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--dw-border);
+  font-size: 11px;
+  color: var(--dw-text-strong);
+  flex-shrink: 0;
+}
+
+.devwind-changelog__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.devwind-changelog__actions button {
+  background: none;
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.devwind-changelog__actions button:hover:not(:disabled) {
+  border-color: var(--dw-accent);
+}
+
+.devwind-changelog__actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.devwind-changelog__list {
+  overflow-y: auto;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.devwind-changelog__entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.devwind-changelog__element {
+  font-size: 10px;
+  color: var(--dw-text-dim);
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.devwind-changelog__diff {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.devwind-changelog__added {
+  color: #22c55e;
+}
+
+.devwind-changelog__removed {
+  color: var(--dw-danger);
+}
+
+.devwind-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  font-size: 10px;
+  font-family: ui-monospace, Menlo, monospace;
+  flex-shrink: 0;
+}
+
+.devwind-breadcrumb__segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.devwind-breadcrumb__item {
+  background: none;
+  border: none;
+  color: var(--dw-text-muted);
+  cursor: pointer;
+  padding: 1px 2px;
+  font: inherit;
+}
+
+.devwind-breadcrumb__item:hover {
+  color: var(--dw-accent-text);
+  text-decoration: underline;
+}
+
+.devwind-breadcrumb__sep {
+  color: var(--dw-border-strong);
+}
+
+.devwind-breadcrumb__current {
+  color: var(--dw-text);
+  font-weight: 600;
+}
+
+.devwind-panel__count {
+  font-size: 11px;
+  color: var(--dw-text-muted);
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.devwind-hint {
+  padding: 16px;
+  color: var(--dw-text-muted);
+  font-size: 12px;
+}
+
+.devwind-empty {
+  color: var(--dw-text-dim);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.devwind-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  overflow-y: auto;
+  max-height: 96px;
+  flex-shrink: 0;
+}
+
+.devwind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 5px;
+  padding: 2px 4px 2px 6px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.devwind-chip__variant {
+  background: var(--dw-accent-strong);
+  color: white;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.devwind-chip__base {
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.devwind-chip__warning {
+  cursor: help;
+  font-size: 10px;
+}
+
+.devwind-chip__remove {
+  background: none;
+  border: none;
+  color: var(--dw-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.devwind-chip__remove:hover {
+  color: var(--dw-danger);
+}
+
+.devwind-variant-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  flex-shrink: 0;
+}
+
+.devwind-variant-toolbar__group {
+  display: flex;
+  gap: 3px;
+}
+
+.devwind-variant-toolbar__custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+}
+
+.devwind-variant-toolbar__custom input {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  width: 130px;
+}
+
+.devwind-variant-pill {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text-muted);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-family: ui-monospace, Menlo, monospace;
+  cursor: pointer;
+}
+
+.devwind-variant-pill:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-variant-pill--active {
+  background: var(--dw-accent-strong);
+  border-color: var(--dw-accent);
+  color: white;
+}
+
+.devwind-recent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  flex-shrink: 0;
+}
+
+.devwind-recent__label {
+  font-size: 10px;
+  color: var(--dw-text-dim);
+  margin-right: 2px;
+}
+
+.devwind-search {
+  margin: 10px 14px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--dw-border);
+  background: var(--dw-bg-subtle);
+  color: var(--dw-text);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.devwind-search:focus {
+  outline: 1px solid var(--dw-accent);
+}
+
+.devwind-category-nav {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.devwind-category-nav__rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+/* Poignée de redimensionnement entre le rail et le contenu : zone de drag de 5px (plus
+   confortable qu'1px), avec un trait visuel fin dessiné via ::after pour ne pas paraître épaisse
+   au repos. Porte aussi la bordure visuelle du rail (qui n'en a donc plus lui-même). */
+.devwind-category-nav__resize-handle {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+}
+
+.devwind-category-nav__resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--dw-border);
+}
+
+.devwind-category-nav__resize-handle:hover::after,
+.devwind-category-nav__resize-handle--active::after {
+  background: var(--dw-accent);
+  width: 2px;
+  left: 1.5px;
+}
+
+.devwind-category-nav__tab {
+  background: none;
+  border: none;
+  color: var(--dw-text-muted);
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+
+.devwind-category-nav__tab:hover {
+  background: var(--dw-bg-subtle);
+}
+
+.devwind-category-nav__tab--active {
+  color: var(--dw-accent-text);
+  border-left-color: var(--dw-accent);
+  background: var(--dw-bg-subtle);
+}
+
+.devwind-category-nav__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 10px;
+}
+
+/* --- Ligne de propriété compacte (remplace les grilles à plat) --- */
+
+.devwind-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--dw-bg-subtle);
+}
+
+.devwind-row__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--dw-text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.devwind-row__sides {
+  display: flex;
+  gap: 2px;
+}
+
+.devwind-side {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text-muted);
+  border-radius: 4px;
+  padding: 3px;
+  cursor: pointer;
+}
+
+.devwind-side--active {
+  background: var(--dw-accent-strong);
+  border-color: var(--dw-accent);
+  color: white;
+}
+
+.devwind-row__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.devwind-pill {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.devwind-pill:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-pill--active {
+  background: var(--dw-accent-strong);
+  border-color: var(--dw-accent);
+  color: white;
+}
+
+/* --- Popover --- */
+
+.devwind-popover {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.devwind-popover__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+  cursor: pointer;
+  min-width: 56px;
+  justify-content: center;
+}
+
+.devwind-popover__trigger:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-popover__trigger--set {
+  background: var(--dw-accent-strong);
+  border-color: var(--dw-accent);
+  color: white;
+}
+
+.devwind-popover__content {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--dw-shadow);
+  width: 220px;
+}
+
+/* --- ValuePickerList --- */
+
+.devwind-vpl {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+}
+
+.devwind-vpl__search {
+  margin: 8px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--dw-border);
+  background: var(--dw-bg);
+  color: var(--dw-text);
+  font-size: 12px;
+}
+
+.devwind-vpl__search:focus {
+  outline: 1px solid var(--dw-accent);
+}
+
+.devwind-vpl__list {
+  overflow-y: auto;
+  padding: 0 4px 4px;
+}
+
+.devwind-vpl__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--dw-text);
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.devwind-vpl__row:hover,
+.devwind-vpl__row--highlighted {
+  background: var(--dw-border);
+}
+
+.devwind-vpl__row--active {
+  background: var(--dw-accent-strong);
+  color: white;
+}
+
+.devwind-vpl__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--dw-swatch-border);
+  flex-shrink: 0;
+}
+
+.devwind-vpl__name {
+  flex: 1;
+}
+
+.devwind-vpl__token {
+  color: var(--dw-text-dim);
+  font-size: 10px;
+}
+
+.devwind-vpl__empty {
+  padding: 8px;
+  color: var(--dw-text-dim);
+  font-size: 11px;
+}
+
+.devwind-vpl__arbitrary {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--dw-border);
+}
+
+.devwind-vpl__arbitrary input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--dw-border);
+  background: var(--dw-bg);
+  color: var(--dw-text);
+  font-size: 11px;
+}
+
+.devwind-vpl__arbitrary button {
+  background: var(--dw-accent-strong);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* --- Résultats de recherche globale + valeurs custom (grille simple) --- */
+
+.devwind-value-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0 8px;
+}
+
+.devwind-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 5px;
+  color: var(--dw-text);
+  padding: 3px 6px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+  cursor: pointer;
+}
+
+.devwind-value:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-value--active {
+  background: var(--dw-accent-strong);
+  border-color: var(--dw-accent);
+  color: white;
+}
+
+.devwind-value__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--dw-swatch-border);
+  flex-shrink: 0;
+}
+
+.devwind-search-results {
+  padding: 0 14px 10px;
+  overflow-y: auto;
+}
+
+.devwind-custom-section {
+  border-top: 1px solid var(--dw-border);
+  padding: 8px 14px;
+  flex-shrink: 0;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.devwind-custom-section summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--dw-text-strong);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.devwind-badge {
+  font-size: 10px;
+  background: var(--dw-warn-bg);
+  color: var(--dw-warn-text);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* --- Contrôle de contraste WCAG --- */
+
+.devwind-contrast-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.devwind-contrast-row__label {
+  color: var(--dw-text-dim);
+}
+
+.devwind-contrast {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.devwind-contrast--pass {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.devwind-contrast--fail {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--dw-danger);
+}
+
+.devwind-contrast--compact {
+  margin-left: auto;
+  padding: 0 4px;
+  font-size: 9px;
+}
+
+/* --- Variables de thème détectées sur le site --- */
+
+.devwind-theme-vars__filter {
+  width: 100%;
+  margin: 6px 0;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--dw-border);
+  background: var(--dw-bg-subtle);
+  color: var(--dw-text);
+  font-size: 11px;
+}
+
+.devwind-theme-vars__filter:focus {
+  outline: 1px solid var(--dw-accent);
+}
+
+.devwind-theme-vars__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.devwind-theme-vars__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 4px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+  color: var(--dw-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.devwind-theme-vars__row:hover {
+  background: var(--dw-bg-subtle);
+}
+
+.devwind-theme-vars__name {
+  color: var(--dw-text-strong);
+  flex-shrink: 0;
+}
+
+.devwind-theme-vars__value {
+  color: var(--dw-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+/* --- Export (menu Copier, dans un Popover) --- */
+
+.devwind-export__menu {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.devwind-export__menu button {
+  background: none;
+  border: none;
+  color: var(--dw-text);
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.devwind-export__menu button:hover {
+  background: var(--dw-border);
+}

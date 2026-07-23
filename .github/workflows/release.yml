@@ -1,0 +1,39 @@
+name: Release
+
+# Sur un tag `vX.Y.Z` : build de production + zip de dist/ + publication en pièce jointe d'une
+# Release GitHub — permet de télécharger et charger l'extension (chrome://extensions > mode
+# développeur > Charger l'extension non empaquetée) sans cloner ni builder le dépôt.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # historique complet + tags, requis par generate-release-notes.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Package extension
+        run: cd dist && zip -r "../devwind-${{ github.ref_name }}.zip" .
+
+      - name: Generate release notes
+        run: bash scripts/generate-release-notes.sh "${{ github.ref_name }}" > release-notes.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "devwind-${{ github.ref_name }}.zip" --title "DevWind ${{ github.ref_name }}" --notes-file release-notes.md
