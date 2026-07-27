@@ -1,5 +1,7 @@
 # DevWind v3
 
+![License](https://img.shields.io/github/license/forthtilliath/devwind-tw3?style=for-the-badge) [![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/) ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/-TypeScript-blue?logo=typescript&logoColor=white&style=for-the-badge) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v3-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white) [![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/) [![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/forthtilliath)
+
 Extension Chrome pour éditer visuellement les classes Tailwind CSS de n'importe quel site, en direct dans le navigateur — dans l'esprit de l'ancienne extension Gimli (discontinuée), avec une meilleure organisation des classes et la prise en charge des classes custom du site.
 
 Cible **Tailwind CSS v3** (thème par défaut résolu via `resolveConfig`, couleurs en hex, classes compilées avec leurs valeurs inlinées en dur — pas de variables CSS `@theme` runtime comme en v4).
@@ -82,3 +84,9 @@ npm version patch   # ou minor / major
 2. `postversion` — pousse le commit ET le tag, ce qui déclenche `.github/workflows/release.yml` (build, zip, Release GitHub).
 
 Le workflow `.github/workflows/release.yml` build, zippe `dist/` et publie automatiquement une Release GitHub avec le zip en pièce jointe.
+
+## Soutenir le projet
+
+DevWind est gratuit et le restera. Si l'extension t'a fait gagner du temps, un café est toujours apprécié ☕
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://buymeacoffee.com/forthtilliath)
