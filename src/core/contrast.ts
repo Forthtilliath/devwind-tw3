@@ -55,10 +55,35 @@ function ensureCanvasCtx(): CanvasRenderingContext2D | null {
   return canvasCtx
 }
 
-/** Convertit n'importe quelle syntaxe de couleur CSS valide en RGB 0-255 concrets. */
-export function cssColorToRgb(css: string): Rgb | null {
+export interface Rgba extends Rgb {
+  /** 0 (transparent) à 1 (opaque). */
+  a: number
+}
+
+const WHITE: Rgb = { r: 255, g: 255, b: 255 }
+
+// Résultats déjà convertis : une liste de couleurs dans un popover recalcule le contraste de
+// chaque ligne à chaque rendu (survol), soit des centaines de `getImageData` sans ce cache. Les
+// couleurs rencontrées sont en nombre limité (palette + couleurs de la page) ; le plafond ne
+// sert que de garde-fou.
+const MAX_CACHED_COLORS = 2000
+const rgbaCache = new Map<string, Rgba | null>()
+
+/** Convertit n'importe quelle syntaxe de couleur CSS valide en RGBA concrets (canaux 0-255,
+ * alpha 0-1). `getImageData` renvoie des valeurs non prémultipliées : un pixel translucide garde
+ * sa teinte (perte de précision négligeable sauf alpha très faible). */
+export function cssColorToRgba(css: string): Rgba | null {
+  const cached = rgbaCache.get(css)
+  if (cached !== undefined) return cached
   const probe = ensureProbe()
   if (!probe) return null
+  if (rgbaCache.size >= MAX_CACHED_COLORS) rgbaCache.clear()
+  const result = convertWithCanvas(probe, css)
+  rgbaCache.set(css, result)
+  return result
+}
+
+function convertWithCanvas(probe: HTMLElement, css: string): Rgba | null {
   probe.style.color = ''
   probe.style.color = css
   if (!probe.style.color) return null // valeur invalide, rejetée par le CSSOM
@@ -68,8 +93,27 @@ export function cssColorToRgb(css: string): Rgb | null {
   ctx.clearRect(0, 0, 1, 1)
   ctx.fillStyle = probe.style.color
   ctx.fillRect(0, 0, 1, 1)
-  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
-  return { r, g, b }
+  const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data
+  return { r, g, b, a: a / 255 }
+}
+
+/** Composition « source-over » d'une couleur translucide sur un fond opaque (espace sRGB, comme
+ * le rendu par défaut des navigateurs). */
+export function compositeOver(top: Rgba, bottom: Rgb): Rgb {
+  const mix = (t: number, b: number) => Math.round(t * top.a + b * (1 - top.a))
+  return { r: mix(top.r, bottom.r), g: mix(top.g, bottom.g), b: mix(top.b, bottom.b) }
+}
+
+/** Aplatit une pile de fonds (le plus proche du texte en premier) sur le blanc par défaut du
+ * canevas. `null` si une couche est illisible : mieux vaut pas de verdict qu'un faux. */
+export function flattenBackgrounds(layers: string[]): Rgb | null {
+  let result = WHITE
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = cssColorToRgba(layers[i])
+    if (!layer) return null
+    result = compositeOver(layer, result)
+  }
+  return result
 }
 
 export interface WcagRating {
@@ -81,13 +125,15 @@ export interface WcagRating {
 }
 
 /** Note un couple texte/fond selon les seuils WCAG 2.1 (AA : 4.5:1 texte normal / 3:1 texte
- * large ; AAA : 7:1 / 4.5:1). `null` si une des deux couleurs n'a pas pu être analysée
- * (ex. `transparent` sans fallback). */
-export function rateContrast(foreground: string, background: string, fontSizePx: number, bold: boolean): WcagRating | null {
-  const fg = cssColorToRgb(foreground)
-  const bg = cssColorToRgb(background)
-  if (!fg || !bg) return null
-  const ratio = contrastRatio(fg, bg)
+ * large ; AAA : 7:1 / 4.5:1). `backgrounds` = pile de fonds, le plus proche du texte en premier :
+ * les fonds translucides sont composés entre eux puis le texte (lui aussi éventuellement
+ * translucide) sur le résultat, pour noter les couleurs réellement affichées. `null` si une
+ * des couleurs n'a pas pu être analysée. */
+export function rateContrast(foreground: string, backgrounds: string[], fontSizePx: number, bold: boolean): WcagRating | null {
+  const fgRgba = cssColorToRgba(foreground)
+  const bg = flattenBackgrounds(backgrounds)
+  if (!fgRgba || !bg) return null
+  const ratio = contrastRatio(compositeOver(fgRgba, bg), bg)
   const isLargeText = fontSizePx >= 24 || (fontSizePx >= 18.66 && bold)
   return {
     ratio,
