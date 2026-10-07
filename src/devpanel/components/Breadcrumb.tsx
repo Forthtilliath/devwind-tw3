@@ -1,3 +1,4 @@
+import { useT } from '../i18n/useT'
 import type { AncestorInfo } from '../../types'
 
 interface BreadcrumbProps {
@@ -15,13 +16,14 @@ function formatAncestor(a: AncestorInfo): string {
 /** Fil d'ariane des ancêtres (parent direct → `<body>`) : remonter dans le DOM sans avoir à
  * re-cliquer précisément dessus dans la page, utile pour les éléments imbriqués/petits. */
 export default function Breadcrumb({ ancestors, tagName, onSelectAncestor }: BreadcrumbProps) {
+  const t = useT()
   if (ancestors.length === 0) return null
 
   // Affiché du plus haut (body) au plus proche (parent direct), élément sélectionné en dernier.
   const ordered = [...ancestors].map((a, index) => ({ a, index })).reverse()
 
   return (
-    <nav className="devwind-breadcrumb" aria-label="Ancêtres de l'élément sélectionné">
+    <nav className="devwind-breadcrumb" aria-label={t('breadcrumb.label')}>
       {ordered.map(({ a, index }) => (
         <span key={index} className="devwind-breadcrumb__segment">
           <button type="button" className="devwind-breadcrumb__item" onClick={() => onSelectAncestor(index)}>

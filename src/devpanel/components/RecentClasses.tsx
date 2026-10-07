@@ -1,4 +1,6 @@
 import { formatSuffix } from '../format'
+import { joinVariants } from '../../core/split-variants'
+import { useT } from '../i18n/useT'
 import type { GeneratedClass } from '../../types'
 
 interface RecentClassesProps {
@@ -11,23 +13,24 @@ interface RecentClassesProps {
 /** Dernières valeurs choisies via un picker (ex. une couleur déjà utilisée ailleurs sur le
  * site) : réappliquer en un clic, dans le contexte de variant courant. */
 export default function RecentClasses({ items, activeClasses, variants, onApply }: RecentClassesProps) {
+  const t = useT()
   if (items.length === 0) return null
 
   return (
     <div className="devwind-recent">
-      <span className="devwind-recent__label">Récent :</span>
+      <span className="devwind-recent__label">{t('recent.label')}</span>
       {items.slice(0, 12).map((item) => (
         <button
           key={item.className}
           type="button"
-          className={`devwind-value${activeClasses.includes([...variants, item.className].join(':')) ? ' devwind-value--active' : ''}${item.category === 'Couleurs' ? ' devwind-value--color' : ''}`}
+          className={`devwind-value${activeClasses.includes(joinVariants(variants, item.className)) ? ' devwind-value--active' : ''}${item.category === 'Couleurs' ? ' devwind-value--color' : ''}`}
           title={item.className}
           onClick={() => onApply(item)}
         >
           {item.category === 'Couleurs' && (
-            <span className="devwind-value__swatch" style={{ background: item.themeToken ?? undefined }} />
+            <span className="devwind-value__swatch" aria-hidden="true" style={{ background: item.themeToken ?? undefined }} />
           )}
-          <span className="devwind-value__label">{formatSuffix(item)}</span>
+          <span className="devwind-value__label">{formatSuffix(item, t('property.default'))}</span>
         </button>
       ))}
     </div>

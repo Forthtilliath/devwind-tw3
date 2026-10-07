@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent } from 'react'
 import { categoryGroups } from '../data'
-import { taxonomy } from '../../data/taxonomy'
+import { TAXONOMY_BY_ID } from '../../data/classes'
 import PropertyRow from './PropertyRow'
+import RailResizeHandle from './RailResizeHandle'
 import { translateCategory } from '../i18n'
+import { useT } from '../i18n/useT'
 import { useDevPanelStore } from '../store/useDevPanelStore'
 import type { GeneratedClass } from '../../types'
 
@@ -11,6 +12,7 @@ interface CategoryNavProps {
   activeClasses: string[]
   variants: string[]
   onApply: (item: GeneratedClass) => void
+  onPreview: (item: GeneratedClass | null) => void
   onApplyArbitrary: (taxonomyId: string, prefix: string, value: string) => void
 }
 
@@ -23,43 +25,19 @@ const MAX_RAIL_WIDTH = 220
 
 /** Rail de catégories ; le contenu de chaque catégorie est une liste de PropertyRow
  * (une ligne compacte par propriété) plutôt que des grilles exhaustives dépliées. */
-export default function CategoryNav({ activeClasses, variants, onApply, onApplyArbitrary }: CategoryNavProps) {
+export default function CategoryNav({ activeClasses, variants, onApply, onPreview, onApplyArbitrary }: CategoryNavProps) {
+  const t = useT()
   const [activeCategory, setActiveCategory] = useState(categoryGroups[0]?.name ?? '')
   const [railWidth, setRailWidth] = useState(DEFAULT_RAIL_WIDTH)
-  const [resizing, setResizing] = useState(false)
   const language = useDevPanelStore((s) => s.language)
   const group = categoryGroups.find((g) => g.name === activeCategory)
 
   useEffect(() => {
     void chrome.storage.local.get(RAIL_WIDTH_STORAGE_KEY).then((stored) => {
       const width = stored[RAIL_WIDTH_STORAGE_KEY]
-      if (typeof width === 'number') setRailWidth(width)
+      if (typeof width === 'number' && Number.isFinite(width)) setRailWidth(Math.min(MAX_RAIL_WIDTH, Math.max(MIN_RAIL_WIDTH, width)))
     })
   }, [])
-
-  function startResize(e: ReactMouseEvent) {
-    e.preventDefault()
-    const startX = e.clientX
-    const startWidth = railWidth
-    setResizing(true)
-
-    function onMouseMove(ev: MouseEvent) {
-      setRailWidth(Math.min(MAX_RAIL_WIDTH, Math.max(MIN_RAIL_WIDTH, startWidth + (ev.clientX - startX))))
-    }
-    function onMouseUp() {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-      setResizing(false)
-      // Lecture de la largeur la plus fraîche via l'updater fonctionnel : `railWidth` capturé à
-      // la fermeture de `startResize` serait périmé après les `setRailWidth` du drag.
-      setRailWidth((w) => {
-        void chrome.storage.local.set({ [RAIL_WIDTH_STORAGE_KEY]: w })
-        return w
-      })
-    }
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-  }
 
   return (
     <div className="devwind-category-nav">
@@ -69,27 +47,27 @@ export default function CategoryNav({ activeClasses, variants, onApply, onApplyA
             key={g.name}
             type="button"
             className={`devwind-category-nav__tab${g.name === activeCategory ? ' devwind-category-nav__tab--active' : ''}`}
+            aria-pressed={g.name === activeCategory}
             onClick={() => setActiveCategory(g.name)}
           >
             {translateCategory(g.name, language)}
           </button>
         ))}
       </div>
-      <div
-        className={`devwind-category-nav__resize-handle${resizing ? ' devwind-category-nav__resize-handle--active' : ''}`}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Redimensionner la colonne des catégories"
-        onMouseDown={startResize}
-        onDoubleClick={() => {
-          setRailWidth(DEFAULT_RAIL_WIDTH)
-          void chrome.storage.local.set({ [RAIL_WIDTH_STORAGE_KEY]: DEFAULT_RAIL_WIDTH })
-        }}
-        title="Glisser pour redimensionner (double-clic pour réinitialiser)"
+      <RailResizeHandle
+        width={railWidth}
+        min={MIN_RAIL_WIDTH}
+        max={MAX_RAIL_WIDTH}
+        defaultWidth={DEFAULT_RAIL_WIDTH}
+        label={t('category.resize')}
+        title={t('category.resizeTitle')}
+        onResize={setRailWidth}
+        onCommit={(w) => void chrome.storage.local.set({ [RAIL_WIDTH_STORAGE_KEY]: w })}
       />
       <div className="devwind-category-nav__content">
         {group?.subcategories.map((sub) => {
-          const entry = taxonomy.find((e) => e.id === sub.classes[0]?.taxonomyId)
+          const taxonomyId = sub.classes[0]?.taxonomyId
+          const entry = taxonomyId ? TAXONOMY_BY_ID.get(taxonomyId) : undefined
           if (!entry) return null
           return (
             <PropertyRow
@@ -99,6 +77,7 @@ export default function CategoryNav({ activeClasses, variants, onApply, onApplyA
               activeClasses={activeClasses}
               variants={variants}
               onApply={onApply}
+              onPreview={onPreview}
               onApplyArbitrary={(prefix, value) => onApplyArbitrary(entry.id, prefix, value)}
             />
           )
