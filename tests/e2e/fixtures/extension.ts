@@ -9,6 +9,19 @@ const EXTENSION_PATH = path.resolve(__dirname, '../../../dist-test')
 const PAGES_DIR = path.join(__dirname, 'pages')
 const SERVER_PORT = 8990
 
+/** Chemin du fichier demandé, ou `null` s'il sortirait de `PAGES_DIR` (`/../…`, `%2e%2e%2f…`)
+ * ou si l'URL est mal encodée. La query string est ignorée. */
+function resolvePagePath(url: string | undefined): string | null {
+  let pathname: string
+  try {
+    pathname = decodeURIComponent(new URL(url ?? '/', 'http://localhost').pathname)
+  } catch {
+    return null
+  }
+  const filePath = path.resolve(PAGES_DIR, `.${pathname}`)
+  return filePath.startsWith(PAGES_DIR + path.sep) ? filePath : null
+}
+
 interface Fixtures {
   context: BrowserContext
   serviceWorker: Worker
@@ -25,7 +38,12 @@ export const test = base.extend<Fixtures>({
       throw new Error(`Build de test introuvable (${EXTENSION_PATH}) — lance "npm run build:test" avant les tests e2e.`)
     }
     const server = http.createServer((req, res) => {
-      const filePath = path.join(PAGES_DIR, decodeURIComponent(req.url ?? '/'))
+      const filePath = resolvePagePath(req.url)
+      if (!filePath) {
+        res.writeHead(400)
+        res.end('bad request')
+        return
+      }
       fs.readFile(filePath, (err, data) => {
         if (err) {
           res.writeHead(404)
@@ -38,9 +56,22 @@ export const test = base.extend<Fixtures>({
     })
     await new Promise<void>((resolve) => server.listen(SERVER_PORT, resolve))
 
+    // Mode sombre pour ménager les yeux pendant les runs "headed" : UI Chrome sombre, media
+    // `prefers-color-scheme: dark` émulé, et assombrissement forcé des fixtures en HTML brut
+    // (appliqué au rendu uniquement — `getComputedStyle` et le DOM restent inchangés).
+    // Navigateur en français : le panneau prend la langue du navigateur tant qu'aucune n'a été
+    // choisie (cf. src/devpanel/i18n/), et les tests ciblent les libellés français.
     const context = await chromium.launchPersistentContext('', {
       headless: false,
-      args: [`--disable-extensions-except=${EXTENSION_PATH}`, `--load-extension=${EXTENSION_PATH}`],
+      colorScheme: 'dark',
+      locale: 'fr-FR',
+      args: [
+        '--lang=fr-FR',
+        `--disable-extensions-except=${EXTENSION_PATH}`,
+        `--load-extension=${EXTENSION_PATH}`,
+        '--force-dark-mode',
+        '--enable-features=WebContentsForceDark',
+      ],
     })
 
     await use(context)
