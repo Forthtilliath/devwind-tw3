@@ -1,53 +1,40 @@
-import { matchTaxonomy, splitVariants } from './class-parser'
-import type { ClassChangeRequest, ClassChangeResult } from '../types'
+import { getClassAttr, readClassList, setClassAttr } from './class-attr'
+import type { ClassChangeResult, ClassEdit } from '../types'
 
-export type { ClassChangeRequest, ClassChangeResult }
+// Écritures DOM côté content script, sans taxonomie ni dataset : le panneau calcule le diff
+// (cf. class-edit-plan.ts) et la page se contente de l'appliquer.
 
-function sameVariantSet(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false
-  const sortedA = [...a].sort()
-  const sortedB = [...b].sort()
-  return sortedA.every((v, i) => v === sortedB[i])
+/** Remplace la liste de classes de l'élément (via l'attribut `class`, cf. class-attr.ts). */
+function writeClasses(el: Element, before: string, next: string[]): ClassChangeResult {
+  setClassAttr(el, next.join(' '))
+  return { before, after: getClassAttr(el) }
 }
 
-/**
- * Retire toutes les classes appartenant au même "slot" (même entrée de taxonomie +
- * même contexte de variant) puis ajoute la nouvelle classe. Dédoublonne au passage
- * les conflits déjà présents sur l'élément (ex. deux classes `bg-*` en même temps).
- */
-export function applyClassChange(el: Element, request: ClassChangeRequest): ClassChangeResult {
-  const before = el.className
-  const current = before.split(/\s+/).filter(Boolean)
+/** Retire les classes `remove` (même slot, calculé par le panneau) puis ajoute `add`. */
+export function applyClassEdit(el: Element, edit: Pick<ClassEdit, 'remove' | 'add'>): ClassChangeResult {
+  const before = getClassAttr(el)
+  const kept = readClassList(el).filter((c) => !edit.remove.includes(c))
+  return writeClasses(el, before, edit.add ? [...kept, edit.add] : kept)
+}
 
-  const kept = current.filter((raw) => {
-    const { variants, base } = splitVariants(raw)
-    if (!sameVariantSet(variants, request.variants)) return true
-    const match = matchTaxonomy(base)
-    if (!match || match.entry.id !== request.taxonomyId) return true
-    return match.prefix !== request.prefix
-  })
-
-  const next = request.newBase
-    ? [...kept, [...request.variants, request.newBase].join(':')]
-    : kept
-
-  el.className = next.join(' ')
-  return { before, after: el.className }
+/** Retire `remove` puis ajoute `add` (sans doublon) : annulation/rétablissement d'une entrée
+ * de l'historique, qui peut concerner plusieurs classes à la fois. */
+export function applyClassDiff(el: Element, remove: string[], add: string[]): ClassChangeResult {
+  const before = getClassAttr(el)
+  const kept = readClassList(el).filter((c) => !remove.includes(c))
+  return writeClasses(el, before, [...kept, ...add.filter((c) => !kept.includes(c))])
 }
 
 /** Retire une classe brute précise (ex. suppression d'un chip), sans passer par la taxonomie. */
 export function removeRawClass(el: Element, rawClass: string): ClassChangeResult {
-  const before = el.className
-  const next = before.split(/\s+/).filter((c) => c && c !== rawClass)
-  el.className = next.join(' ')
-  return { before, after: el.className }
+  const before = getClassAttr(el)
+  return writeClasses(el, before, readClassList(el).filter((c) => c !== rawClass))
 }
 
 /** Ajoute une classe brute précise (ex. classe custom cochée dans le panneau), sans doublon. */
 export function addRawClass(el: Element, rawClass: string): ClassChangeResult {
-  const before = el.className
-  const current = before.split(/\s+/).filter(Boolean)
+  const before = getClassAttr(el)
+  const current = readClassList(el)
   if (!current.includes(rawClass)) current.push(rawClass)
-  el.className = current.join(' ')
-  return { before, after: el.className }
+  return writeClasses(el, before, current)
 }
