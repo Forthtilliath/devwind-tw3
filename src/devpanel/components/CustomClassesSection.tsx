@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useDevPanelStore } from '../store/useDevPanelStore'
+import { useT } from '../i18n/useT'
 
 interface CustomClassesSectionProps {
   activeClasses: string[]
@@ -7,7 +8,9 @@ interface CustomClassesSectionProps {
 
 /** Classes non reconnues comme Tailwind, trouvées en scannant le CSS chargé par la page. */
 export default function CustomClassesSection({ activeClasses }: CustomClassesSectionProps) {
+  const t = useT()
   const customScan = useDevPanelStore((s) => s.customScan)
+  const sitePrefix = useDevPanelStore((s) => s.sitePrefix)
   const runCssScan = useDevPanelStore((s) => s.runCssScan)
   const toggleClass = useDevPanelStore((s) => s.toggleClass)
 
@@ -21,18 +24,15 @@ export default function CustomClassesSection({ activeClasses }: CustomClassesSec
   return (
     <details className="devwind-custom-section">
       <summary>
-        Custom / Autres classes ({classNames.length})
+        {t('custom.summary', { count: classNames.length })}
         {customScan.unscannable.length > 0 && (
           <span className="devwind-badge" title={customScan.unscannable.join('\n')}>
-            {customScan.unscannable.length} feuille(s) non scannable(s)
+            {t('custom.unscannable', { count: customScan.unscannable.length })}
           </span>
         )}
-        {customScan.detectedPrefix && (
-          <span
-            className="devwind-badge"
-            title="Détecté par heuristique : les classes de ce site semblent préfixées (option `prefix` de Tailwind). Le préfixe fait partie intégrante du nom de classe en v3 (ex. `tw-bg-red-500`), donc ces classes ne sont pas reconnues comme du Tailwind standard — elles restent listées ici en tant que classes custom plutôt que d'apparaître dans les catégories."
-          >
-            préfixe détecté : {customScan.detectedPrefix}
+        {sitePrefix && (
+          <span className="devwind-badge" title={t('custom.prefixTitle')}>
+            {t('custom.prefix', { prefix: sitePrefix })}
           </span>
         )}
       </summary>
@@ -42,13 +42,14 @@ export default function CustomClassesSection({ activeClasses }: CustomClassesSec
             key={cls}
             type="button"
             className={`devwind-value${activeClasses.includes(cls) ? ' devwind-value--active' : ''}`}
+            aria-pressed={activeClasses.includes(cls)}
             title={customScan.found.get(cls)?.join(', ')}
             onClick={() => toggleClass(cls)}
           >
             <span className="devwind-value__label">{cls}</span>
           </button>
         ))}
-        {classNames.length === 0 && <p className="devwind-empty">Aucune classe custom détectée sur cette page.</p>}
+        {classNames.length === 0 && <p className="devwind-empty">{t('custom.empty')}</p>}
       </div>
     </details>
   )

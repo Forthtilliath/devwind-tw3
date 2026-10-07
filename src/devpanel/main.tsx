@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import DevPanel from './DevPanel'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useDevPanelStore } from './store/useDevPanelStore'
 import { saveWindowBounds } from '../core/activation'
 import { applyTheme, loadTheme } from './theme'
@@ -28,6 +29,8 @@ window.addEventListener('blur', schedulePersistBounds)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <DevPanel />
+    <ErrorBoundary>
+      <DevPanel />
+    </ErrorBoundary>
   </StrictMode>,
 )

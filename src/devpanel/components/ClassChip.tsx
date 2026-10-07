@@ -1,3 +1,6 @@
+import { splitVariants } from '../../core/split-variants'
+import { useT } from '../i18n/useT'
+
 interface ClassChipProps {
   rawClass: string
   onRemove: (rawClass: string) => void
@@ -9,9 +12,9 @@ interface ClassChipProps {
 
 /** Chip d'une classe active sur l'élément sélectionné, avec ses badges de variant. */
 export default function ClassChip({ rawClass, onRemove, unsupported }: ClassChipProps) {
-  const parts = rawClass.split(':')
-  const base = parts.at(-1)!
-  const variants = parts.slice(0, -1)
+  const t = useT()
+  // Pas de `split(':')` naïf : `bg-[url(https://…)]` contient un `:` hors variant.
+  const { variants, base } = splitVariants(rawClass)
 
   return (
     <span className="devwind-chip">
@@ -24,7 +27,9 @@ export default function ClassChip({ rawClass, onRemove, unsupported }: ClassChip
       {unsupported && (
         <span
           className="devwind-chip__warning"
-          title="Pas d'effet visuel prévisualisable : ce variant n'est pas synthétisable (ex. dark: sans stratégie détectable). La classe est bien appliquée, mais ne s'affichera que si le CSS réel du site la définit."
+          role="img"
+          aria-label={t('chip.unsupported')}
+          title={t('chip.unsupportedTitle')}
         >
           ⚠
         </span>
@@ -32,7 +37,7 @@ export default function ClassChip({ rawClass, onRemove, unsupported }: ClassChip
       <button
         type="button"
         className="devwind-chip__remove"
-        aria-label={`Retirer ${rawClass}`}
+        aria-label={t('chip.remove', { cls: rawClass })}
         onClick={() => onRemove(rawClass)}
       >
         ×
