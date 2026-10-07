@@ -1,0 +1,71 @@
+import type { TaxonomyEntry } from '../../types'
+
+const BLEND_MODES = [
+  'normal',
+  'multiply',
+  'screen',
+  'overlay',
+  'darken',
+  'lighten',
+  'color-dodge',
+  'color-burn',
+  'hard-light',
+  'soft-light',
+  'difference',
+  'exclusion',
+  'hue',
+  'saturation',
+  'color',
+  'luminosity',
+]
+
+/** Effets : ombre, opacité, modes de fusion. */
+export const effects: TaxonomyEntry[] = [
+  {
+    id: 'boxShadow',
+    category: 'Effets',
+    subcategory: 'Shadow',
+    prefixes: ['shadow'],
+    // Approximation simple (voir live-style.ts) : pas composé avec les rings actifs.
+    cssProperties: { shadow: ['box-shadow'] },
+    themeKey: 'boxShadow',
+    type: 'scale',
+    supportsArbitrary: true,
+    supportsNegative: false,
+  },
+  {
+    id: 'opacity',
+    category: 'Effets',
+    subcategory: 'Opacity',
+    prefixes: ['opacity'],
+    cssProperties: { opacity: ['opacity'] },
+    themeKey: 'opacity',
+    type: 'scale',
+    supportsArbitrary: true,
+    supportsNegative: false,
+  },
+  {
+    id: 'mixBlendMode',
+    category: 'Effets',
+    subcategory: 'Blend',
+    prefixes: ['mix-blend'],
+    cssProperties: { 'mix-blend': ['mix-blend-mode'] },
+    themeKey: null,
+    type: 'static',
+    staticValues: BLEND_MODES,
+    supportsArbitrary: false,
+    supportsNegative: false,
+  },
+  {
+    id: 'backgroundBlendMode',
+    category: 'Effets',
+    subcategory: 'Blend arrière-plan',
+    prefixes: ['bg-blend'],
+    cssProperties: { 'bg-blend': ['background-blend-mode'] },
+    themeKey: null,
+    type: 'static',
+    staticValues: BLEND_MODES,
+    supportsArbitrary: false,
+    supportsNegative: false,
+  },
+]
