@@ -3,9 +3,13 @@ import pkg from './package.json' with { type: 'json' }
 
 export default defineManifest(({ mode }) => ({
   manifest_version: 3,
-  name: 'DevWind v3',
+  // Textes du manifest traduits par Chrome selon la langue du navigateur (public/_locales/,
+  // copié tel quel à la racine de dist/) ; l'interface du panneau a sa propre traduction,
+  // commutable à chaud (src/devpanel/i18n/).
+  default_locale: 'en',
+  name: '__MSG_extName__',
   version: pkg.version,
-  description: 'Éditeur visuel de classes Tailwind CSS v3, en direct dans le navigateur.',
+  description: '__MSG_extDescription__',
   // Fichiers dans public/icons/ : Vite copie déjà tout public/ tel quel à la racine de dist/
   // (public/icons/icon16.png -> dist/icons/icon16.png), donc les chemins ci-dessous sont
   // relatifs à dist/, pas au projet.
@@ -33,7 +37,7 @@ export default defineManifest(({ mode }) => ({
   commands: {
     'toggle-picker': {
       suggested_key: { default: 'Ctrl+Shift+K', mac: 'Command+Shift+K' },
-      description: 'Activer/désactiver le picker DevWind',
+      description: '__MSG_commandToggle__',
     },
   },
   permissions: ['activeTab', 'scripting', 'storage'],
