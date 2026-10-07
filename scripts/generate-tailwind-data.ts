@@ -1,8 +1,8 @@
 // Script de build : croise le thème par défaut Tailwind v3 (API publique et stable) avec la
-// taxonomie hand-authored (src/data/taxonomy.ts) pour produire le dataset des classes
+// taxonomie hand-authored (src/data/taxonomy/) pour produire le dataset des classes
 // utilitaires, SANS jamais taper une classe à la main.
-// Sortie versionnée : src/data/generated/tailwind-classes.json (bundlée par Vite, pas de
-// fetch runtime).
+// Sortie non versionnée, régénérée avant dev/build/test : src/data/generated/tailwind-classes.json
+// (bundlée par Vite, pas de fetch runtime).
 //
 // `resolveConfig` résout le thème par défaut v3 (config JS, moteur PostCSS) — contrairement à
 // v4 qui l'a retiré au profit d'un moteur natif/Rust piloté par CSS (`@theme`). Couleurs par
@@ -13,7 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import resolveConfig from 'tailwindcss/resolveConfig'
 import { taxonomy } from '../src/data/taxonomy'
-import type { GeneratedClass, SlimGeneratedClass, TaxonomyEntry } from '../src/types'
+import type { GeneratedClass, TaxonomyEntry } from '../src/types'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -141,22 +141,10 @@ const outDir = path.resolve(__dirname, '../src/data/generated')
 fs.mkdirSync(outDir, { recursive: true })
 
 const outFile = path.join(outDir, 'tailwind-classes.json')
-fs.writeFileSync(outFile, JSON.stringify(generated, null, 2))
+fs.writeFileSync(outFile, JSON.stringify(generated))
 
-// Version allégée pour le content script (class-parser.ts, live-style.ts) : `category`/
-// `subcategory` ne servent qu'à l'affichage/regroupement dans le devpanel (src/devpanel/data.ts,
-// PropertyRow.tsx...), jamais à la reconnaissance ou à la synthèse de classes — inutile de les
-// embarquer dans le bundle injecté sur chaque page (~22% de réduction sur ce fichier).
-const slim: SlimGeneratedClass[] = generated.map(({ className, taxonomyId, prefix, themeKey, themeToken, secondaryValue, negative }) => ({
-  className,
-  taxonomyId,
-  prefix,
-  themeKey,
-  themeToken,
-  secondaryValue,
-  negative,
-}))
-const slimOutFile = path.join(outDir, 'tailwind-classes-slim.json')
-fs.writeFileSync(slimOutFile, JSON.stringify(slim))
+// Ancienne version allégée destinée au content script : celui-ci n'embarque plus le dataset
+// (diff et CSS calculés par le devpanel), on retire le fichier s'il reste d'un build précédent.
+fs.rmSync(path.join(outDir, 'tailwind-classes-slim.json'), { force: true })
 
-console.log(`[generate-tailwind-data] ${generated.length} classes générées -> ${path.relative(process.cwd(), outFile)} (+ version allégée pour le content script)`)
+console.log(`[generate-tailwind-data] ${generated.length} classes générées -> ${path.relative(process.cwd(), outFile)}`)
