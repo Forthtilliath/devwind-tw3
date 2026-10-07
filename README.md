@@ -10,17 +10,20 @@ Fork de [devwind](https://github.com/Forthtilliath/devwind), qui cible Tailwind 
 
 ## Fonctionnalités
 
-- **Picker visuel** : clic sur l'icône ou `Ctrl+Shift+K` pour activer le picker, clic sur un élément de la page pour sélectionner ce qu'on veut éditer. Fil d'ariane des ancêtres, navigation clavier (flèches), mode verrouillé pour interagir avec la page sans perdre la sélection (bouton 🔒 ou `Échap` directement sur la page).
-- **Panneau dans une fenêtre séparée**, déplaçable indépendamment (utile sur un second écran) : classes regroupées par catégorie (couleurs, spacing, typographie, bordures, effets, filtres, transitions, interactivité...) dans un rail redimensionnable, recherche transversale, valeurs récentes, export en texte brut ou JSX.
-- **Historique de session** : chaque ajout/retrait de classe, sur n'importe quel élément de la page (pas juste la sélection courante), est loggué avec un diff `+classe`/`−classe` — pratique pour retrouver l'ensemble des modifications faites à différents endroits avant de finaliser. Copiable, vidable.
+- **Picker visuel** : clic sur l'icône ou `Ctrl+Shift+K` pour activer le picker, clic sur un élément de la page pour sélectionner ce qu'on veut éditer. Surbrillance façon DevTools (dimensions, marge et padding, survol en pointillé / sélection en trait plein), fil d'ariane des ancêtres, navigation clavier (flèches), mode verrouillé pour interagir avec la page sans perdre la sélection (bouton 🔒 ou `Échap` directement sur la page).
+- **Panneau dans une fenêtre séparée**, déplaçable indépendamment (utile sur un second écran) : classes regroupées par catégorie (couleurs, spacing, typographie, bordures, effets, filtres, transitions, interactivité...) dans un rail redimensionnable, valeurs récentes, export en texte brut ou JSX.
+- **Aperçu au survol** : survoler une valeur dans la liste d'une propriété l'applique temporairement sur la page, sans rien enregistrer ; le clic la valide.
+- **Recherche transversale** : résultats classés (exact, puis début de nom…), recherche par valeur CSS (`16px` → `p-4`, `#ef4444` → `bg-red-500`…), suggestions tolérantes aux fautes de frappe.
+- **Variants** : breakpoints réels du site (lus dans les media queries de son CSS compilé), pseudo-classes courantes en accès direct (`hover`, `focus-visible`, `group-hover`, `first`…), variant libre, réinitialisation en un clic.
+- **Historique de session et annuler/rétablir** : chaque ajout/retrait de classe, sur n'importe quel élément de la page (pas juste la sélection courante), est loggué avec un diff `+classe`/`−classe`. `Ctrl+Z` / `Ctrl+Shift+Z` (ou les boutons ↶ ↷), annulation d'une entrée précise depuis l'historique. Export des modifications ou des classes finales de tous les éléments modifiés, chacun repéré par un sélecteur CSS unique.
 - **Synthèse CSS live** : une classe choisie dans le panneau produit un effet visuel immédiat même si elle est absente du CSS déjà chargé sur la page (build de prod purgé) — variants `hover:`, `dark:`, breakpoints, `group-*`/`peer-*`, `aria-*`, `has-*`, `data-*`, opacité de couleur (`bg-red-500/80`), propriétés composites (transform/filter/backdrop-filter, toutes composées via une seule propriété `transform` partagée comme le vrai moteur v3) synthétisées fidèlement.
-- **Scan CSS** : détecte les classes custom (non-Tailwind) utilisées sur la page en parsant les feuilles de style chargées (avec repli `fetch()` pour le cross-origin autorisant CORS), re-scanne automatiquement si le site charge du CSS dynamiquement.
+- **Scan CSS** : détecte les classes custom (non-Tailwind) utilisées sur la page en parsant les feuilles de style chargées (avec repli `fetch()` pour le cross-origin autorisant CORS), re-scanne automatiquement si le site charge du CSS dynamiquement. Signale un préfixe de site (`tw-bg-red-500`, option `prefix` de v3).
 - **Contrôle de contraste WCAG** : ratio texte/fond de l'élément sélectionné (AA/AAA), aperçu du contraste par couleur candidate avant de l'appliquer.
-- Thème clair/sombre du panneau, libellés de catégorie en français ou anglais (toggle FR/EN, pas de mélange), raccourcis clavier, indicateur de classe non synthétisable.
+- Interface en français ou en anglais (langue du navigateur par défaut, toggle FR/EN), thème clair/sombre du panneau, raccourcis clavier, indicateur de classe non synthétisable, reconnexion en un clic après rechargement de la page quand Chrome le permet.
 
-**Pas dans cette version** (spécifiques à v4, non pertinents ou non adaptés pour v3) : navigateur de variables de thème (v3 n'expose pas son thème en CSS runtime), détection de préfixe de site (syntaxe de préfixe différente en v3, `tw-bg-red-500` au lieu de `tw:bg-red-500`).
+**Pas dans cette version** (spécifique à v4) : navigateur de variables de thème — v3 n'expose pas son thème en CSS runtime.
 
-Détail complet des fonctionnalités et idées futures : [UPGRADES.md](UPGRADES.md).
+Bugs et idées d'amélioration : [issues GitHub](../../issues).
 
 ## Installation
 
@@ -46,20 +49,27 @@ Puis charger le dossier `dist/` de la même façon.
 ```sh
 npm run dev     # build en mode watch (HMR pour le panneau)
 npm run lint    # oxlint
+npm test        # tests unitaires (Vitest)
 npm run build   # build de production dans dist/
 ```
 
-Le dataset de classes (`src/data/generated/`) est régénéré automatiquement avant chaque build (`npm run generate:tw-data`) à partir du thème par défaut Tailwind v3 (`resolveConfig`) croisé avec la taxonomie éditée à la main (`src/data/taxonomy.ts`) — jamais de classe tapée en dur.
+Le dataset de classes (`src/data/generated/`, non versionné) est régénéré automatiquement avant chaque `dev`, `build` et `test` (`npm run generate:tw-data`) à partir du thème par défaut Tailwind v3 (`resolveConfig`) croisé avec la taxonomie éditée à la main (`src/data/taxonomy/`) — jamais de classe tapée en dur.
 
 ### Structure
 
 - `src/core/` — logique indépendante du DOM/React : parsing de classes, diff, synthèse CSS live, scan CSS, contraste WCAG.
-- `src/content/` — content script injecté à la demande sur la page éditée.
+- `src/content/` — content script injecté à la demande sur la page éditée. Volontairement léger (~17 Ko) : il n'embarque ni la taxonomie ni le dataset ; le panneau calcule le diff de classes et le CSS de prévisualisation, la page se contente de les appliquer.
 - `src/devpanel/` — l'interface React du panneau (fenêtre séparée).
 - `src/background/` — service worker (activation, raccourcis).
-- `src/data/taxonomy.ts` — la seule table éditée à la main ; `scripts/generate-tailwind-data.ts` en dérive le dataset complet des classes.
+- `src/data/taxonomy/` — la seule table éditée à la main (un fichier par catégorie) ; `scripts/generate-tailwind-data.ts` en dérive le dataset complet des classes.
 
 ### Tests
+
+Tests unitaires Vitest de `src/core/` (parsing, diff, synthèse CSS, variants, contraste, validation des messages) :
+
+```sh
+npm test
+```
 
 Suite e2e Playwright, extension chargée dans un vrai Chromium :
 
@@ -73,15 +83,18 @@ Le build de test (`npm run build:test`) diffère du build de production sur deux
 
 ### Publier une release
 
-Une seule commande (working directory propre requis) :
+Rien n'est poussé directement sur `main` : la release passe par une PR, puis le tag est posé après intégration (le rebase réécrit les SHA).
 
 ```sh
-npm version patch   # ou minor / major
+npm version patch   # ou minor / major — depuis main propre et à jour
+# … intégrer la PR ouverte (rebase), puis :
+npm run release:tag
 ```
 
-`npm version` bump `package.json`, commit et tague (`vX.Y.Z`) en un coup ; les hooks `preversion`/`postversion` (voir `package.json`) font le reste automatiquement :
-1. `preversion` — lint + type-check, annule tout si ça échoue (rien n'est bumpé/tagué).
-2. `postversion` — pousse le commit ET le tag, ce qui déclenche `.github/workflows/release.yml` (build, zip, Release GitHub).
+1. `preversion` — vérifie qu'on est sur `main` propre et aligné sur `origin/main`, puis lint + tests + type-check ; annule tout si ça échoue (rien n'est bumpé).
+2. `npm version` bump `package.json`/`package-lock.json` sans commit ni tag (`.npmrc` : `git-tag-version=false`).
+3. `postversion` — crée la branche `release/vX.Y.Z`, commit `chore: release vX.Y.Z`, pousse la branche et ouvre la PR.
+4. `npm run release:tag` — met `main` à jour, tague le commit de release (`vX.Y.Z`) et pousse le tag, ce qui déclenche `.github/workflows/release.yml`.
 
 Le workflow `.github/workflows/release.yml` build, zippe `dist/` et publie automatiquement une Release GitHub avec le zip en pièce jointe.
 
