@@ -1,0 +1,75 @@
+.devwind-category-nav {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.devwind-category-nav__rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+/* Poignée de redimensionnement entre le rail et le contenu : zone de drag de 5px (plus
+   confortable qu'1px), avec un trait visuel fin dessiné via ::after pour ne pas paraître épaisse
+   au repos. Porte aussi la bordure visuelle du rail (qui n'en a donc plus lui-même). */
+.devwind-category-nav__resize-handle {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  /* Sinon le navigateur interprète un glisser tactile comme un défilement (pointercancel). */
+  touch-action: none;
+  user-select: none;
+}
+
+.devwind-category-nav__resize-handle:focus-visible {
+  outline: 2px solid var(--dw-accent);
+  outline-offset: -1px;
+}
+
+.devwind-category-nav__resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--dw-border);
+}
+
+.devwind-category-nav__resize-handle:hover::after,
+.devwind-category-nav__resize-handle:focus-visible::after,
+.devwind-category-nav__resize-handle--active::after {
+  background: var(--dw-accent);
+  width: 2px;
+  left: 1.5px;
+}
+
+.devwind-category-nav__tab {
+  background: none;
+  border: none;
+  color: var(--dw-text-muted);
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+
+.devwind-category-nav__tab:hover {
+  background: var(--dw-bg-subtle);
+}
+
+.devwind-category-nav__tab--active {
+  color: var(--dw-accent-text);
+  border-left-color: var(--dw-accent);
+  background: var(--dw-bg-subtle);
+}
+
+.devwind-category-nav__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 10px;
+}

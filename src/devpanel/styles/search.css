@@ -1,0 +1,31 @@
+.devwind-search {
+  margin: 10px 14px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--dw-border);
+  background: var(--dw-bg-subtle);
+  color: var(--dw-text);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.devwind-search:focus {
+  outline: 1px solid var(--dw-accent);
+}
+
+.devwind-search-results {
+  padding: 0 14px 10px;
+  overflow-y: auto;
+}
+
+.devwind-search-results__hint,
+.devwind-search-results__more {
+  font-size: 11px;
+  color: var(--dw-text-dim);
+  margin: 2px 0 4px;
+}
+
+/* Message "aucun résultat" à la place des résultats : même retrait que la liste. */
+.devwind-search + .devwind-empty {
+  padding: 0 14px;
+}

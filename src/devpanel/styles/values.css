@@ -1,0 +1,56 @@
+.devwind-recent {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  flex-shrink: 0;
+}
+
+.devwind-recent__label {
+  font-size: 10px;
+  color: var(--dw-text-dim);
+  margin-right: 2px;
+}
+
+/* --- Résultats de recherche globale + valeurs custom (grille simple) --- */
+
+.devwind-value-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0 8px;
+}
+
+.devwind-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 5px;
+  color: var(--dw-text);
+  padding: 3px 6px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+  cursor: pointer;
+}
+
+.devwind-value:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-value--active {
+  background: var(--dw-accent-strong);
+  border-color: var(--dw-accent);
+  color: white;
+}
+
+.devwind-value__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--dw-swatch-border);
+  flex-shrink: 0;
+}

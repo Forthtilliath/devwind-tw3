@@ -1,0 +1,109 @@
+/* Popover plus large que le défaut (220px), pour laisser respirer les diffs de classes. */
+.devwind-popover:has(.devwind-changelog) .devwind-popover__content {
+  width: 320px;
+}
+
+.devwind-changelog {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+}
+
+.devwind-changelog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--dw-border);
+  font-size: 11px;
+  color: var(--dw-text-strong);
+  flex-shrink: 0;
+}
+
+.devwind-changelog__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.devwind-changelog__actions button {
+  background: none;
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.devwind-changelog__actions button:hover:not(:disabled) {
+  border-color: var(--dw-accent);
+}
+
+.devwind-changelog__actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.devwind-changelog__list {
+  overflow-y: auto;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Libellé de l'élément et bouton annuler/rétablir sur la 1re ligne, diff en dessous. */
+.devwind-changelog__entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 6px;
+}
+
+.devwind-changelog__element {
+  font-size: 10px;
+  color: var(--dw-text-dim);
+  font-family: ui-monospace, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.devwind-changelog__diff {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.devwind-changelog__revert {
+  grid-column: 2;
+  grid-row: 1;
+  background: none;
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text-muted);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.devwind-changelog__revert:hover {
+  border-color: var(--dw-accent);
+  color: var(--dw-text);
+}
+
+.devwind-changelog__entry--undone .devwind-changelog__diff {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.devwind-changelog__added {
+  color: #22c55e;
+}
+
+.devwind-changelog__removed {
+  color: var(--dw-danger);
+}

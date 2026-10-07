@@ -1,0 +1,103 @@
+/* --- ValuePickerList --- */
+
+.devwind-vpl {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+}
+
+.devwind-vpl__search {
+  margin: 8px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--dw-border);
+  background: var(--dw-bg);
+  color: var(--dw-text);
+  font-size: 12px;
+}
+
+.devwind-vpl__search:focus {
+  outline: 1px solid var(--dw-accent);
+}
+
+.devwind-vpl__list {
+  overflow-y: auto;
+  padding: 0 4px 4px;
+}
+
+.devwind-vpl__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--dw-text);
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.devwind-vpl__row:hover,
+.devwind-vpl__row--highlighted {
+  background: var(--dw-border);
+}
+
+.devwind-vpl__row--active {
+  background: var(--dw-accent-strong);
+  color: white;
+}
+
+.devwind-vpl__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--dw-swatch-border);
+  flex-shrink: 0;
+}
+
+.devwind-vpl__name {
+  flex: 1;
+}
+
+.devwind-vpl__token {
+  color: var(--dw-text-dim);
+  font-size: 10px;
+}
+
+.devwind-vpl__empty {
+  padding: 8px;
+  color: var(--dw-text-dim);
+  font-size: 11px;
+}
+
+.devwind-vpl__arbitrary {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--dw-border);
+}
+
+.devwind-vpl__arbitrary input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--dw-border);
+  background: var(--dw-bg);
+  color: var(--dw-text);
+  font-size: 11px;
+}
+
+.devwind-vpl__arbitrary button {
+  background: var(--dw-accent-strong);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
