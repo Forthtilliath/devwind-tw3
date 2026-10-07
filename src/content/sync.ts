@@ -1,8 +1,14 @@
-import { addRawClass, applyClassChange, removeRawClass } from '../core/class-diff'
-import { scanCustomClasses, watchForStylesheetChanges } from '../core/css-scanner'
-import { ensureLiveRule } from '../core/live-style'
+import { addRawClass, applyClassEdit, removeRawClass } from '../core/class-diff'
+import { readClassList } from '../core/class-attr'
+import { computeEffectiveColors } from './element-colors'
+import { scanStylesheetClasses, watchForStylesheetChanges } from '../core/css-scanner'
+import { collectPrefixCandidates } from '../core/prefix-candidates'
+import { ensureLiveRule, invalidateRuleIndex, STYLE_ELEMENT_ID } from './live-injection'
+import { isSyncFromPanel } from '../core/message-guards'
+import { clearChangeLog, finalClasses, getChangeLog, logChange, revertEntry } from './change-log'
+import { cancelPreview, previewEdit } from './preview'
 import { DEVWIND_SYNC_PORT } from '../types'
-import type { AncestorInfo, ChangeLogEntry, ClassChangeResult, ElementColors, SyncFromContent, SyncFromPanel } from '../types'
+import type { AncestorInfo, ClassChangeResult, SyncFromContent, SyncFromPanel } from '../types'
 
 // Élément actuellement sélectionné + chaîne de ses ancêtres (fil d'ariane), gardés hors de
 // tout state React/store (c'est le content script qui a l'accès DOM réel ; la fenêtre devpanel
@@ -14,47 +20,15 @@ let stopWatchingStylesheets: (() => void) | null = null
 
 const MAX_ANCESTORS = 8
 
-// Historique des modifications de TOUTE la page pendant la session (pas juste l'élément
-// sélectionné) : permet de retrouver l'ensemble des changements faits à différents endroits
-// sans avoir à s'en souvenir soi-même. Vidé au rechargement de la page (le content script est
-// ré-injecté à zéro), plafonné pour éviter une croissance illimitée sur une session très longue.
-const MAX_LOG_ENTRIES = 300
-let changeLog: ChangeLogEntry[] = []
-let changeLogIdCounter = 0
-
-function readClasses(el: Element): string[] {
-  return el.className.toString().split(/\s+/).filter(Boolean)
-}
-
 function describeAncestor(el: Element): AncestorInfo {
-  return { tagName: el.tagName.toLowerCase(), id: el.id || null, classes: readClasses(el) }
+  return { tagName: el.tagName.toLowerCase(), id: el.id || null, classes: readClassList(el) }
 }
 
-/** Description légère mais STABLE d'un élément (jamais basée sur ses classes, puisque ce sont
- * justement elles qui changent) : id si présent, sinon position parmi ses frères de même tag —
- * pas un sélecteur garanti unique, juste de quoi se repérer visuellement dans l'historique. */
-function describeElement(el: Element): string {
-  const tag = el.tagName.toLowerCase()
-  if (el.id) return `${tag}#${el.id}`
-  const parent = el.parentElement
-  if (!parent) return tag
-  const siblingsOfSameTag = Array.from(parent.children).filter((c) => c.tagName === el.tagName)
-  if (siblingsOfSameTag.length <= 1) return tag
-  return `${tag}:nth-of-type(${siblingsOfSameTag.indexOf(el) + 1})`
-}
-
-/** Diffe un `ClassChangeResult` et l'ajoute à l'historique de session (silencieux si la
- * modification n'a en fait rien changé, ex. reposer la même valeur déjà active). */
-function logChange(el: Element, result: ClassChangeResult) {
-  const before = result.before.split(/\s+/).filter(Boolean)
-  const after = result.after.split(/\s+/).filter(Boolean)
-  const added = after.filter((c) => !before.includes(c))
-  const removed = before.filter((c) => !after.includes(c))
-  if (added.length === 0 && removed.length === 0) return
-
-  changeLog.push({ id: ++changeLogIdCounter, timestamp: Date.now(), elementLabel: describeElement(el), added, removed })
-  if (changeLog.length > MAX_LOG_ENTRIES) changeLog = changeLog.slice(changeLog.length - MAX_LOG_ENTRIES)
-  send({ type: 'CHANGE_LOG_UPDATED', entries: changeLog })
+/** Ajoute la modification à l'historique et en transmet la nouvelle entrée seule (le panneau
+ * l'ajoute à sa copie, même plafond). */
+function recordChange(el: Element, result: ClassChangeResult) {
+  const entry = logChange(el, result)
+  if (entry) send({ type: 'CHANGE_LOG_ENTRY', entry })
 }
 
 /** Du parent direct jusqu'à `<body>` inclus, plafonné pour éviter un fil d'ariane interminable
@@ -70,52 +44,44 @@ function computeAncestors(el: Element): Element[] {
   return chain
 }
 
-function isTransparent(color: string): boolean {
-  const m = /rgba\([^)]+,\s*([\d.]+)\)/.exec(color)
-  return color === 'transparent' || (m != null && Number(m[1]) === 0)
-}
-
-/** Couleur de fond effective : remonte les ancêtres tant que `background-color` est
- * transparent, pour refléter le fond réellement visible derrière l'élément plutôt qu'un
- * `rgba(0,0,0,0)` inutile au calcul de contraste. Blanc par défaut si toute la chaîne est
- * transparente (cas `<body>` sans fond explicite, comportement de rendu par défaut). */
-function computeEffectiveColors(el: Element): ElementColors {
-  const style = getComputedStyle(el)
-  let bg = style.backgroundColor
-  let current: Element | null = el
-  while (current && isTransparent(bg)) {
-    current = current.parentElement
-    if (!current) break
-    bg = getComputedStyle(current).backgroundColor
-  }
-  if (!bg || isTransparent(bg)) bg = 'rgb(255, 255, 255)'
-  return {
-    color: style.color,
-    backgroundColor: bg,
-    fontSize: parseFloat(style.fontSize),
-    bold: Number(style.fontWeight) >= 700,
-  }
-}
-
 function send(message: SyncFromContent) {
   port?.postMessage(message)
 }
 
-async function runCssScan() {
-  const result = await scanCustomClasses()
+function sendElementSelected(el: Element) {
   send({
-    type: 'CUSTOM_SCAN_RESULT',
-    found: Array.from(result.found.entries()),
-    unscannable: result.unscannable,
-    detectedPrefix: result.detectedPrefix,
+    type: 'ELEMENT_SELECTED',
+    tagName: el.tagName.toLowerCase(),
+    classes: readClassList(el),
+    ancestors: ancestorElements.map(describeAncestor),
+    colors: computeEffectiveColors(el),
   })
+}
+
+async function runCssScan() {
+  const result = await scanStylesheetClasses(document, STYLE_ELEMENT_ID)
+  send({ type: 'CUSTOM_SCAN_RESULT', found: Array.from(result.found.entries()), unscannable: result.unscannable, breakpoints: result.breakpoints })
+}
+
+/** Un seul parcours du DOM, à la connexion puis à chaque changement de feuilles de style : le
+ * panneau en déduit le préfixe de site (informatif en v3, cf. core/site-prefix.ts). */
+function sendPrefixCandidates() {
+  send({ type: 'PREFIX_CANDIDATES', candidates: collectPrefixCandidates() })
+}
+
+/** Les feuilles de style ont changé : index des vraies règles périmé, préfixe et liste "Custom"
+ * à recalculer. */
+function onStylesheetsChanged() {
+  invalidateRuleIndex()
+  sendPrefixCandidates()
+  void runCssScan()
 }
 
 export interface SetupSyncOptions {
   onPortConnected: () => void
   onPortDisconnected: () => void
-  /** Sélection changée (picker, fil d'ariane ou navigation clavier) : sert à synchroniser le
-   * rectangle de surbrillance sur la page avec la sélection actuelle. */
+  /** Sélection changée (picker, fil d'ariane ou navigation clavier) ou ses classes modifiées :
+   * sert à synchroniser le rectangle de surbrillance sur la page avec la sélection actuelle. */
   onSelectionChanged: (el: Element | null) => void
   onSetLocked: (locked: boolean) => void
 }
@@ -124,28 +90,21 @@ let options: SetupSyncOptions | null = null
 
 /** Centralise le changement de sélection (picker, fil d'ariane, clavier) : met à jour l'état,
  * recalcule les ancêtres, notifie la fenêtre devpanel ET le callback local (surbrillance). */
-function setSelection(el: Element | null) {
+function setSelection(el: Element | null, detached = false) {
+  cancelPreview()
   selectedEl = el
   ancestorElements = el ? computeAncestors(el) : []
   options?.onSelectionChanged(el)
 
-  if (!el) {
-    send({ type: 'ELEMENT_CLEARED' })
-    return
-  }
-  send({
-    type: 'ELEMENT_SELECTED',
-    tagName: el.tagName.toLowerCase(),
-    classes: readClasses(el),
-    ancestors: ancestorElements.map(describeAncestor),
-    colors: computeEffectiveColors(el),
-  })
+  if (el) sendElementSelected(el)
+  else send({ type: 'ELEMENT_CLEARED', detached })
 }
 
 /** Recalcule les couleurs effectives à chaque changement de classes (une édition peut changer
  * le texte ET le fond, ou le fond d'un ancêtre remonté par `computeEffectiveColors`). */
 function sendClassesUpdated(el: Element, unsupportedClass?: string | null) {
-  send({ type: 'CLASSES_UPDATED', classes: readClasses(el), unsupportedClass, colors: computeEffectiveColors(el) })
+  options?.onSelectionChanged(el)
+  send({ type: 'CLASSES_UPDATED', classes: readClassList(el), unsupportedClass, colors: computeEffectiveColors(el) })
 }
 
 function navigate(direction: 'parent' | 'child' | 'prev' | 'next') {
@@ -163,31 +122,68 @@ function navigate(direction: 'parent' | 'child' | 'prev' | 'next') {
   setSelection(target)
 }
 
-function handlePanelMessage(message: SyncFromPanel) {
+/** Élément sélectionné encore dans le DOM ? Une SPA qui re-rend le composant le remplace par
+ * un nouveau nœud : éditer l'ancien n'aurait aucun effet visible, donc on vide la sélection et
+ * on prévient le panneau plutôt que d'appliquer les éditions dans le vide. */
+function ensureSelectionConnected(): boolean {
+  if (!selectedEl) return false
+  if (selectedEl.isConnected) return true
+  setSelection(null, true)
+  return false
+}
+
+const NEEDS_SELECTION = new Set<SyncFromPanel['type']>(['APPLY_CHANGE', 'PREVIEW_CHANGE', 'REMOVE_CLASS', 'TOGGLE_CLASS', 'NAVIGATE', 'SELECT_ANCESTOR'])
+/** Messages qui ne touchent ni aux classes ni à la sélection : un aperçu en cours y survit. */
+const KEEPS_PREVIEW = new Set<SyncFromPanel['type']>(['PREVIEW_CHANGE', 'RUN_CSS_SCAN', 'SET_LOCKED'])
+
+function handlePanelMessage(raw: unknown) {
+  if (!isSyncFromPanel(raw)) return
+  const message: SyncFromPanel = raw
+  // Toute édition/lecture part de l'état réel de l'élément, jamais de l'aperçu.
+  if (!KEEPS_PREVIEW.has(message.type)) cancelPreview()
+  if (NEEDS_SELECTION.has(message.type) && !ensureSelectionConnected()) return
   switch (message.type) {
     case 'APPLY_CHANGE': {
       if (!selectedEl) return
-      let unsupportedClass: string | null = null
-      if (message.request.newBase) {
-        const fullClassName = [...message.request.variants, message.request.newBase].join(':')
-        if (ensureLiveRule(fullClassName) === 'unsupported') unsupportedClass = fullClassName
-      }
-      logChange(selectedEl, applyClassChange(selectedEl, message.request))
+      const { edit } = message
+      const unsupportedClass = edit.add && ensureLiveRule(edit.add, edit.liveRule) === 'unsupported' ? edit.add : null
+      recordChange(selectedEl, applyClassEdit(selectedEl, edit))
       sendClassesUpdated(selectedEl, unsupportedClass)
       return
     }
+    case 'PREVIEW_CHANGE': {
+      if (selectedEl) previewEdit(selectedEl, message.edit)
+      return
+    }
+    case 'CANCEL_PREVIEW':
+      return // déjà annulé ci-dessus
     case 'REMOVE_CLASS': {
       if (!selectedEl) return
-      logChange(selectedEl, removeRawClass(selectedEl, message.rawClass))
+      recordChange(selectedEl, removeRawClass(selectedEl, message.rawClass))
       sendClassesUpdated(selectedEl)
       return
     }
     case 'TOGGLE_CLASS': {
       if (!selectedEl) return
-      const current = readClasses(selectedEl)
+      const current = readClassList(selectedEl)
       const result = current.includes(message.rawClass) ? removeRawClass(selectedEl, message.rawClass) : addRawClass(selectedEl, message.rawClass)
-      logChange(selectedEl, result)
+      recordChange(selectedEl, result)
       sendClassesUpdated(selectedEl)
+      return
+    }
+    case 'REVERT_CHANGE': {
+      const outcome = revertEntry(message.id, message.undo, new Map(message.liveRules))
+      if (!outcome) return
+      if (!outcome.ok) {
+        send({ type: 'REVERT_REJECTED', id: message.id, reason: outcome.reason })
+        return
+      }
+      send({ type: 'CHANGE_LOG_ENTRY_UPDATED', entry: outcome.entry })
+      if (outcome.el === selectedEl) sendClassesUpdated(selectedEl)
+      return
+    }
+    case 'REQUEST_FINAL_CLASSES': {
+      send({ type: 'FINAL_CLASSES', elements: finalClasses() })
       return
     }
     case 'RUN_CSS_SCAN': {
@@ -208,8 +204,8 @@ function handlePanelMessage(message: SyncFromPanel) {
       return
     }
     case 'CLEAR_CHANGE_LOG': {
-      changeLog = []
-      send({ type: 'CHANGE_LOG_UPDATED', entries: changeLog })
+      clearChangeLog()
+      send({ type: 'CHANGE_LOG_RESET', entries: getChangeLog() })
       return
     }
   }
@@ -219,33 +215,33 @@ function handlePanelMessage(message: SyncFromPanel) {
 export function setupSync(opts: SetupSyncOptions) {
   options = opts
   chrome.runtime.onConnect.addListener((p) => {
-    if (p.name !== DEVWIND_SYNC_PORT) return
+    // Seule NOTRE fenêtre devpanel (même id d'extension) a le droit de piloter la page.
+    if (p.name !== DEVWIND_SYNC_PORT || p.sender?.id !== chrome.runtime.id) return
     port = p
     opts.onPortConnected()
-    if (selectedEl) {
-      send({
-        type: 'ELEMENT_SELECTED',
-        tagName: selectedEl.tagName.toLowerCase(),
-        classes: readClasses(selectedEl),
-        ancestors: ancestorElements.map(describeAncestor),
-        colors: computeEffectiveColors(selectedEl),
-      })
-    }
+    // Avant la sélection : le panneau connaît ainsi le préfixe avant son premier scan CSS, les
+    // messages du Port arrivant dans l'ordre.
+    invalidateRuleIndex()
+    sendPrefixCandidates()
+    if (selectedEl) sendElementSelected(selectedEl)
+    // Surbrillance masquée à la fermeture du panneau précédent : on la réaffiche.
+    opts.onSelectionChanged(selectedEl)
 
     // Toujours renvoyé, même vide : une fenêtre devpanel réouverte doit refléter l'historique
     // déjà accumulé cette session (le content script, lui, n'est pas ré-injecté à chaque
     // ouverture du panneau).
-    send({ type: 'CHANGE_LOG_UPDATED', entries: changeLog })
+    send({ type: 'CHANGE_LOG_RESET', entries: getChangeLog() })
 
     // Re-scanne automatiquement (debounced) si le site charge une feuille de style après coup
     // (route SPA, composant lazy-loadé...), pour ne pas laisser la liste "Custom" périmée tant
     // que la fenêtre devpanel reste ouverte.
     stopWatchingStylesheets?.()
-    stopWatchingStylesheets = watchForStylesheetChanges(() => void runCssScan())
+    stopWatchingStylesheets = watchForStylesheetChanges(onStylesheetsChanged, document, STYLE_ELEMENT_ID)
 
     p.onMessage.addListener(handlePanelMessage)
     p.onDisconnect.addListener(() => {
       if (port === p) port = null
+      cancelPreview()
       stopWatchingStylesheets?.()
       stopWatchingStylesheets = null
       opts.onPortDisconnected()
@@ -258,7 +254,7 @@ export function selectElement(el: Element | null) {
   setSelection(el)
 }
 
-/** Appelé quand le verrouillage est déclenché depuis LA PAGE (Échap, cf. main.tsx) plutôt que
+/** Appelé quand le verrouillage est déclenché depuis LA PAGE (Échap, cf. main.ts) plutôt que
  * depuis le bouton 🔒 du panneau : contrairement à `SET_LOCKED` (panneau → page), il n'y a rien
  * à appliquer côté page ici (déjà fait par l'appelant), juste à synchroniser l'icône du panneau. */
 export function notifyLockedFromPage(locked: boolean) {

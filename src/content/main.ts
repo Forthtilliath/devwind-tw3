@@ -1,12 +1,13 @@
 import { mountShadowHost } from './shadow-mount'
 import { createElementPicker } from './picker/elementPicker'
 import { notifyLockedFromPage, selectElement, setupSync } from './sync'
+import { isPickerMessage } from '../core/message-guards'
 import type { PickerMessage, PickerState } from '../types'
 
 const HOST_ID = 'devwind-root-host'
 
 function mount() {
-  // Idempotent : si le popup ré-exécute le content script sur un onglet déjà monté
+  // Idempotent : si core/activation.ts ré-exécute le content script sur un onglet déjà monté
   // (double clic rapide, etc.), on ne remonte pas un second Shadow DOM.
   if (document.getElementById(HOST_ID)) return
 
@@ -41,6 +42,7 @@ function mount() {
       pickerActive = false
       locked = false
       picker.stop()
+      picker.showSelection(null)
     },
     onSelectionChanged: (el) => picker.showSelection(el),
     onSetLocked: (nextLocked) => {
@@ -54,12 +56,13 @@ function mount() {
     },
   })
 
-  chrome.runtime.onMessage.addListener((message: PickerMessage, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
+    if (sender.id !== chrome.runtime.id || !isPickerMessage(raw)) return false
+    const message: PickerMessage = raw
     const state = (): PickerState => ({ active: pickerActive })
 
     switch (message.type) {
       case 'DEVWIND_PING':
-      case 'DEVWIND_GET_STATE':
         sendResponse(state())
         return true
       case 'DEVWIND_SET_ACTIVE': {
