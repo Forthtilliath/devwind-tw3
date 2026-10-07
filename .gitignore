@@ -13,8 +13,14 @@ dist-test
 dist-ssr
 *.local
 
-# Notes de travail locales, jamais partagées (préférence utilisateur, tous projets)
-UPGRADES.md
+# Dataset de classes régénéré avant chaque dev/build/test (npm run generate:tw-data)
+/src/data/generated/
+
+# Notes de travail locales, jamais partagées (préférence utilisateur, tous projets) : tous les
+# .md sauf README et CHANGELOG
+*.md
+!README.md
+!CHANGELOG.md
 
 # Playwright (tests/e2e)
 /test-results/
