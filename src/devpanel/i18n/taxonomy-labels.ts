@@ -1,25 +1,11 @@
-export type Language = 'fr' | 'en'
-
-const STORAGE_KEY = 'devwind-language'
-
-export async function loadLanguage(): Promise<Language> {
-  const stored = await chrome.storage.local.get(STORAGE_KEY)
-  return stored[STORAGE_KEY] === 'en' ? 'en' : 'fr'
-}
-
-export async function setLanguage(lang: Language): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEY]: lang })
-}
-
-export const NEXT_LANGUAGE: Record<Language, Language> = { fr: 'en', en: 'fr' }
-export const LANGUAGE_LABEL: Record<Language, string> = { fr: 'FR', en: 'EN' }
+import type { Language } from './types'
 
 /**
- * Traductions des libellés de catégorie/sous-catégorie de `taxonomy.ts` — celui-ci reste la
+ * Traductions des libellés de catégorie/sous-catégorie de la taxonomie — celle-ci reste la
  * source de vérité (une seule chaîne par entrée, servant aussi de clé de regroupement dans
  * `devpanel/data.ts`), cette table ne fait QUE l'habillage d'affichage. Clé = valeur brute
- * actuelle dans `taxonomy.ts` (peu importe sa langue d'origine), donc aucune modification de
- * `taxonomy.ts`/du générateur n'est nécessaire pour ajouter la traduction manquante.
+ * actuelle dans la taxonomie (peu importe sa langue d'origine), donc aucune modification de la
+ * taxonomie/du générateur n'est nécessaire pour ajouter la traduction manquante.
  */
 const CATEGORY_LABELS: Record<string, Record<Language, string>> = {
   Spacing: { fr: 'Espacement', en: 'Spacing' },
@@ -107,7 +93,7 @@ const SUBCATEGORY_LABELS: Record<string, Record<Language, string>> = {
   Scroll: { fr: 'Défilement', en: 'Scroll' },
 }
 
-/** Retombe sur la chaîne brute si jamais une entrée de taxonomy.ts n'a pas encore sa traduction
+/** Retombe sur la chaîne brute si jamais une entrée de la taxonomie n'a pas encore sa traduction
  * (ex. ajout futur non encore répertorié) — dégradation silencieuse plutôt qu'un trou d'affichage. */
 export function translateCategory(raw: string, lang: Language): string {
   return CATEGORY_LABELS[raw]?.[lang] ?? raw
