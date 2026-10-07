@@ -1,7 +1,6 @@
-// Protocole de messages entre popup et content script.
+// Protocole de messages entre le service worker (core/activation.ts) et le content script.
 export type PickerMessage =
   | { type: 'DEVWIND_PING' }
-  | { type: 'DEVWIND_GET_STATE' }
   | { type: 'DEVWIND_SET_ACTIVE'; active: boolean }
 
 export interface PickerState {
@@ -43,22 +42,12 @@ export interface GeneratedClass {
   negative: boolean
 }
 
-/** `GeneratedClass` sans `category`/`subcategory` (affichage/regroupement uniquement, cf.
- * devpanel) — dataset embarqué dans le content script (class-parser.ts, live-style.ts), qui
- * n'a besoin que des champs servant à la reconnaissance/synthèse de classes. */
-export type SlimGeneratedClass = Omit<GeneratedClass, 'category' | 'subcategory'>
-
 // --- Parsing / diff de classes ---
 
 export interface ParsedClass {
   raw: string
   variants: string[]
   base: string
-}
-
-export interface VariantContext {
-  breakpoint: string | null
-  pseudo: string[]
 }
 
 export interface ClassChangeRequest {
@@ -79,36 +68,75 @@ export interface ClassChangeResult {
   after: string
 }
 
-// --- Scan CSS ---
-
-export interface CustomClassInfo {
-  className: string
-  sources: string[]
+/** CSS synthétisé par le panneau pour prévisualiser une classe absente du CSS du site (cf.
+ * core/live-style.ts). Sans `dark:`, une seule règle ; avec `dark:`, `[règle media, règle
+ * classe]`, que la page ordonne selon la stratégie dark réellement active. */
+export interface LiveRule {
+  rules: string[]
+  dark: boolean
 }
+
+/** Édition calculée par le panneau (taxonomie + dataset), appliquée telle quelle par la page. */
+export interface ClassEdit {
+  /** Classes brutes du même slot que la nouvelle, à retirer. */
+  remove: string[]
+  /** Classe complète (variants compris) à ajouter, ou null pour seulement vider le slot. */
+  add: string | null
+  /** CSS à injecter si le site ne définit pas déjà `add` ; null = rien de synthétisable. */
+  liveRule: LiveRule | null
+}
+
+// --- Scan CSS ---
 
 export interface CssScanResult {
   found: Map<string, string[]>
   unscannable: string[]
-  /** Préfixe de site détecté par heuristique (option `prefix` de Tailwind v3), informatif
-   * uniquement — voir `detectSitePrefix` dans css-scanner.ts. */
-  detectedPrefix: string | null
 }
+
+/** Candidat au préfixe de site (option `prefix` de v3, collé au nom : `tw-bg-red-500`) :
+ * `[préfixe, reste, occurrences]`. La page découpe les classes, le panneau valide le reste
+ * contre la taxonomie (cf. core/site-prefix.ts). */
+export type PrefixCandidate = [string, string, number]
+
+/** Media query de largeur du CSS du site et classes qu'elle contient (cf.
+ * core/breakpoint-scanner.ts) : `[1er variant, 2e variant ou '', 'min'|'max', seuil, occurrences]`.
+ * En v3, le préfixe de site est collé à l'utilitaire, jamais en variant : seul le 1er compte. */
+export type BreakpointVote = [string, string, 'min' | 'max', string, number]
 
 // --- Historique des modifications de la session (toute la page, pas juste l'élément courant) ---
 
 export interface ChangeLogEntry {
+  /** Numéro d'ordre croissant, partagé avec `undoneSeq` (cf. content/change-log.ts). */
   id: number
   timestamp: number
-  /** Description légère de l'élément touché (ex. `button#target-btn`, `li:nth-of-type(2)`) —
-   * pas un sélecteur garanti unique, juste assez pour se repérer visuellement. */
+  /** Description courte de l'élément touché (ex. `button#target-btn`, `li:nth-of-type(2)`),
+   * pour se repérer visuellement. */
   elementLabel: string
+  /** Sélecteur CSS unique dans la page au moment du changement (jamais basé sur les classes,
+   * puisque ce sont elles qui changent) : sert à l'export. */
+  selector: string
   added: string[]
   removed: string[]
+  /** Modification annulée : numéro d'ordre de l'annulation (rétablir au clavier = la plus
+   * récente), absent si elle est appliquée. */
+  undoneSeq?: number
 }
+
+/** Classes finales d'un élément modifié pendant la session (export "toutes les classes"). */
+export interface ElementClassesSnapshot {
+  selector: string
+  classes: string[]
+}
+
+/** Annulation/rétablissement refusé : élément retiré de la page, ou classes modifiées depuis. */
+export type RevertRejection = 'detached' | 'modified'
 
 // --- Synchronisation content script <-> fenêtre devpanel (via chrome.runtime.Port) ---
 
 export const DEVWIND_SYNC_PORT = 'devwind-sync'
+
+/** Plafond de l'historique de session, appliqué à l'identique par la page et le panneau. */
+export const MAX_CHANGE_LOG_ENTRIES = 300
 
 /** Un ancêtre dans le fil d'ariane (cf. DevPanel), du parent direct jusqu'à `<body>`. */
 export interface AncestorInfo {
@@ -117,7 +145,7 @@ export interface AncestorInfo {
   classes: string[]
 }
 
-/** Résultat de `ensureLiveRule` (live-style.ts) : `has-real-rule` = le CSS du site définit
+/** Résultat de `ensureLiveRule` (content/live-injection.ts) : `has-real-rule` = le CSS du site définit
  * déjà cette classe (rien synthétisé) ; `synthesized` = injectée par nous ; `unsupported` =
  * ni l'un ni l'autre, la classe appliquée n'aura probablement aucun effet visuel (ex. `dark:`
  * sans stratégie détectable, variant non géré...). */
@@ -125,12 +153,17 @@ export type LiveRuleStatus = 'has-real-rule' | 'synthesized' | 'unsupported'
 
 /** Couleurs effectives de l'élément sélectionné (`getComputedStyle`, dans n'importe quelle
  * syntaxe — `rgb()` ou `oklch()`/`lab()` selon le navigateur et l'origine de la couleur ;
- * `core/contrast.ts` sait convertir les deux). Sert au contrôle de contraste. `backgroundColor`
- * remonte les ancêtres si transparente, pour refléter le fond réellement visible derrière le
- * texte plutôt qu'un `transparent` inutile. */
+ * `core/contrast.ts` sait convertir les deux). Sert au contrôle de contraste, qui compose
+ * `backgroundColor` sur `backdrop` (puis sur blanc) pour obtenir le fond réellement visible. */
 export interface ElementColors {
   color: string
+  /** Fond propre de l'élément, éventuellement translucide ou `transparent`. */
   backgroundColor: string
+  /** Fonds non transparents des ancêtres, le plus proche en premier, jusqu'au premier opaque. */
+  backdrop: string[]
+  /** Dégradé/image de fond, opacité, filtre ou mode de fusion rencontré : le ratio calculé sur
+   * les seules couleurs de fond n'est qu'une estimation. */
+  approximate: boolean
   fontSize: number
   bold: boolean
 }
@@ -138,10 +171,22 @@ export interface ElementColors {
 /** Messages envoyés par le content script vers la fenêtre devpanel connectée. */
 export type SyncFromContent =
   | { type: 'ELEMENT_SELECTED'; tagName: string; classes: string[]; ancestors: AncestorInfo[]; colors: ElementColors }
-  | { type: 'ELEMENT_CLEARED' }
+  /** `detached` : l'élément a disparu du DOM (re-rendu SPA), pas une désélection volontaire. */
+  | { type: 'ELEMENT_CLEARED'; detached?: boolean }
   | { type: 'CLASSES_UPDATED'; classes: string[]; unsupportedClass?: string | null; colors: ElementColors }
-  | { type: 'CUSTOM_SCAN_RESULT'; found: [string, string[]][]; unscannable: string[]; detectedPrefix: string | null }
-  | { type: 'CHANGE_LOG_UPDATED'; entries: ChangeLogEntry[] }
+  /** Toutes les classes trouvées dans les feuilles de style (le panneau écarte les Tailwind),
+   * et les breakpoints de leurs media queries. */
+  | { type: 'CUSTOM_SCAN_RESULT'; found: [string, string[]][]; unscannable: string[]; breakpoints: BreakpointVote[] }
+  | { type: 'PREFIX_CANDIDATES'; candidates: PrefixCandidate[] }
+  /** Historique complet : à la connexion et après un vidage. */
+  | { type: 'CHANGE_LOG_RESET'; entries: ChangeLogEntry[] }
+  /** Une nouvelle entrée, ajoutée côté panneau (plafond identique à la page). */
+  | { type: 'CHANGE_LOG_ENTRY'; entry: ChangeLogEntry }
+  /** Entrée existante annulée ou rétablie (même `id`, `undoneSeq` mis à jour). */
+  | { type: 'CHANGE_LOG_ENTRY_UPDATED'; entry: ChangeLogEntry }
+  | { type: 'REVERT_REJECTED'; id: number; reason: RevertRejection }
+  /** Réponse à `REQUEST_FINAL_CLASSES`. */
+  | { type: 'FINAL_CLASSES'; elements: ElementClassesSnapshot[] }
   | { type: 'LOCKED_CHANGED'; locked: boolean }
 
 /** Direction de navigation clavier, relative à l'élément sélectionné. */
@@ -149,7 +194,15 @@ export type NavigateDirection = 'parent' | 'child' | 'prev' | 'next'
 
 /** Messages envoyés par la fenêtre devpanel vers le content script. */
 export type SyncFromPanel =
-  | { type: 'APPLY_CHANGE'; request: ClassChangeRequest }
+  | { type: 'APPLY_CHANGE'; edit: ClassEdit }
+  /** Aperçu temporaire (survol d'une valeur) : appliqué sans historique, annulé par
+   * `CANCEL_PREVIEW` ou remplacé par l'édition réelle. */
+  | { type: 'PREVIEW_CHANGE'; edit: ClassEdit }
+  | { type: 'CANCEL_PREVIEW' }
+  /** Annule (`undo: true`) ou rétablit une entrée de l'historique. `liveRules` : CSS de
+   * prévisualisation des classes qui vont être (ré)ajoutées, calculé par le panneau. */
+  | { type: 'REVERT_CHANGE'; id: number; undo: boolean; liveRules: [string, LiveRule | null][] }
+  | { type: 'REQUEST_FINAL_CLASSES' }
   | { type: 'REMOVE_CLASS'; rawClass: string }
   | { type: 'TOGGLE_CLASS'; rawClass: string }
   | { type: 'RUN_CSS_SCAN' }
