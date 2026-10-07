@@ -1,12 +1,14 @@
-import { toggleDevPanel } from '../core/activation'
+import { closeDevPanelOfRemovedTab, toggleDevPanel } from '../core/activation'
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[DevWind] extension installée')
-})
-
-// Clic sur l'icône : ouvre/ferme directement la fenêtre devpanel (plus de popup intermédiaire).
+// Clic sur l'icône : ouvre/ferme directement la fenêtre devpanel.
 chrome.action.onClicked.addListener((tab) => {
   if (tab.id != null) void toggleDevPanel(tab.id)
+})
+
+// Onglet de la page fermé : ferme aussi sa fenêtre devpanel (sinon elle resterait ouverte,
+// déconnectée, sans rien à éditer).
+chrome.tabs.onRemoved.addListener((tabId) => {
+  void closeDevPanelOfRemovedTab(tabId)
 })
 
 // Raccourci clavier (Ctrl+Shift+K) : même bascule, geste utilisateur qualifiant pour activeTab

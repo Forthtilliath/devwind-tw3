@@ -42,12 +42,18 @@ async function setPickerActive(tabId: number, active: boolean): Promise<void> {
   }
 }
 
+interface DevPanelLocation {
+  windowId: number
+  /** Onglet de la fenêtre devpanel elle-même (pas l'onglet de la page éditée). */
+  panelTabId: number
+}
+
 /** Retrouve la fenêtre devpanel déjà ouverte pour cet onglet, s'il y en a une. */
-async function findDevPanelWindowId(tabId: number): Promise<number | null> {
+async function findDevPanel(tabId: number): Promise<DevPanelLocation | null> {
   const tabs = await chrome.tabs.query({ url: `${chrome.runtime.getURL(DEVPANEL_PATH)}*` })
   for (const t of tabs) {
-    if (!t.url || t.windowId == null) continue
-    if (new URL(t.url).searchParams.get('tabId') === String(tabId)) return t.windowId
+    if (!t.url || t.windowId == null || t.id == null) continue
+    if (new URL(t.url).searchParams.get('tabId') === String(tabId)) return { windowId: t.windowId, panelTabId: t.id }
   }
   return null
 }
@@ -59,9 +65,22 @@ interface WindowBounds {
   height?: number
 }
 
+const BOUND_KEYS = ['left', 'top', 'width', 'height'] as const
+const MIN_WINDOW_SIZE = 200
+
+/** Relit la position sauvegardée en ne gardant que des entiers plausibles : une valeur
+ * corrompue ferait échouer `chrome.windows.create` (et donc l'ouverture du panneau). */
 async function getSavedBounds(): Promise<WindowBounds> {
-  const stored = await chrome.storage.local.get(BOUNDS_STORAGE_KEY)
-  return (stored[BOUNDS_STORAGE_KEY] as WindowBounds | undefined) ?? {}
+  const stored: unknown = (await chrome.storage.local.get(BOUNDS_STORAGE_KEY))[BOUNDS_STORAGE_KEY]
+  if (typeof stored !== 'object' || stored === null) return {}
+  const bounds: WindowBounds = {}
+  for (const key of BOUND_KEYS) {
+    const v = (stored as Record<string, unknown>)[key]
+    if (typeof v !== 'number' || !Number.isFinite(v)) continue
+    if ((key === 'width' || key === 'height') && v < MIN_WINDOW_SIZE) continue
+    bounds[key] = Math.round(v)
+  }
+  return bounds
 }
 
 /** Appelé par la fenêtre devpanel elle-même (resize/blur) pour se souvenir de sa position. */
@@ -75,9 +94,9 @@ export async function openDevPanel(tabId: number): Promise<void> {
   if (!ready) return
   await setPickerActive(tabId, true)
 
-  const existing = await findDevPanelWindowId(tabId)
+  const existing = await findDevPanel(tabId)
   if (existing != null) {
-    await chrome.windows.update(existing, { focused: true })
+    await chrome.windows.update(existing.windowId, { focused: true })
     return
   }
 
@@ -99,13 +118,58 @@ export async function openDevPanel(tabId: number): Promise<void> {
  * explicite à setPickerActive ici est un filet de sécurité, pas le mécanisme principal.
  */
 export async function closeDevPanel(tabId: number): Promise<void> {
-  const existing = await findDevPanelWindowId(tabId)
-  if (existing != null) await chrome.windows.remove(existing)
+  const existing = await findDevPanel(tabId)
+  if (existing != null) await chrome.windows.remove(existing.windowId)
   await setPickerActive(tabId, false)
 }
 
+/**
+ * Page rechargée/naviguée : le content script a disparu et la fenêtre devpanel affiche "Page
+ * fermée". Plutôt que de fermer ce panneau mort (ce qui obligeait à cliquer deux fois), on
+ * réinjecte le content script puis on recharge le panneau, qui se reconnecte au démarrage.
+ */
+async function reconnectDevPanel(tabId: number, panel: DevPanelLocation): Promise<void> {
+  const ready = await ensureContentScriptReady(tabId)
+  if (!ready) return
+  await setPickerActive(tabId, true)
+  await chrome.tabs.reload(panel.panelTabId)
+  await chrome.windows.update(panel.windowId, { focused: true })
+}
+
+/**
+ * Bouton "Reconnecter" du panneau : réinjecte le content script et réactive le picker. Échoue
+ * (`false`) quand Chrome a révoqué `activeTab` à la navigation — seul un nouveau geste sur
+ * l'icône (ou le raccourci) peut alors rendre l'accès à la page.
+ */
+export async function reinjectContentScript(tabId: number): Promise<boolean> {
+  try {
+    if (!(await ensureContentScriptReady(tabId))) return false
+    await setPickerActive(tabId, true)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Met l'onglet de la page au premier plan (et sa fenêtre), pour cliquer sur l'icône DevWind. */
+export async function focusPageTab(tabId: number): Promise<void> {
+  try {
+    const tab = await chrome.tabs.update(tabId, { active: true })
+    if (tab?.windowId != null) await chrome.windows.update(tab.windowId, { focused: true })
+  } catch {
+    // Onglet fermé entre-temps : rien à afficher.
+  }
+}
+
 export async function toggleDevPanel(tabId: number): Promise<void> {
-  const existing = await findDevPanelWindowId(tabId)
-  if (existing != null) await closeDevPanel(tabId)
-  else await openDevPanel(tabId)
+  const existing = await findDevPanel(tabId)
+  if (existing == null) return openDevPanel(tabId)
+  if (await pingContentScript(tabId)) return closeDevPanel(tabId)
+  return reconnectDevPanel(tabId, existing)
+}
+
+/** Onglet de la page fermé : sa fenêtre devpanel n'a plus rien à éditer, on la ferme aussi. */
+export async function closeDevPanelOfRemovedTab(tabId: number): Promise<void> {
+  const existing = await findDevPanel(tabId)
+  if (existing != null) await chrome.windows.remove(existing.windowId)
 }
