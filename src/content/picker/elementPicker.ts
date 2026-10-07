@@ -1,119 +1,150 @@
-import { createOverlay } from './overlay'
+import { createBoxHighlight } from './box-highlight'
+import { readClassList } from '../../core/class-attr'
+
+const PRESS_EVENTS = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'dblclick'] as const
 
 export interface ElementPickerOptions {
   shadowRoot: ShadowRoot
   host: Element
   onSelect: (el: Element) => void
   /** Échap pendant le picking : laisse l'appelant décider de la réaction (verrouiller la
-   * sélection courante, cf. main.tsx) — le picker se contente de masquer son survol. */
+   * sélection courante, cf. main.ts) — le picker se contente de masquer son survol. */
   onEscape?: () => void
 }
 
 export interface ElementPicker {
   start(): void
   stop(): void
-  /** Affiche/masque le rectangle de surbrillance sur un élément précis, indépendamment du
-   * survol de la souris — utilisé pour la navigation clavier / le fil d'ariane des ancêtres,
-   * qui changent la sélection sans mouvement de souris (marche même après `stop()`, donc
-   * reste visible en mode verrouillé). */
+  /** Affiche (ou masque, `null`) la surbrillance de la sélection, distincte de celle du survol
+   * et indépendante du picking : elle reste visible en mode verrouillé, suit le défilement et
+   * les changements de taille de l'élément (édition de classes, aperçu au survol). */
   showSelection(el: Element | null): void
 }
 
-function describeElement(el: Element): string {
+/** Libellé court affiché sur la surbrillance (tag + première classe). À ne pas confondre avec
+ * `shortElementLabel` (historique), volontairement indépendant des classes. */
+function overlayLabel(el: Element): string {
   const tag = el.tagName.toLowerCase()
-  const classes = el.className ? el.className.toString().trim().split(/\s+/).filter(Boolean) : []
+  const classes = readClassList(el)
   return classes.length ? `${tag}.${classes[0]}${classes.length > 1 ? ` +${classes.length - 1}` : ''}` : tag
 }
 
 /**
  * Picking continu (comme les DevTools "inspect element") : tant que le picker est actif,
  * chaque clic sur la page sélectionne l'élément visé (au lieu de laisser passer le clic
- * normalement) et met à jour le panneau. Désactivé uniquement via le toggle du popup.
+ * normalement) et met à jour le panneau. Arrêté à la fermeture du panneau ou au verrouillage
+ * de la sélection (cf. main.ts).
  */
 export function createElementPicker({ shadowRoot, host, onSelect, onEscape }: ElementPickerOptions): ElementPicker {
-  const overlay = createOverlay(shadowRoot)
+  const hoverBox = createBoxHighlight(shadowRoot, 'hover')
+  const selectionBox = createBoxHighlight(shadowRoot, 'selection')
   let active = false
   let rafId: number | null = null
   let lastHovered: Element | null = null
+  let selected: Element | null = null
+  const resizeObserver = new ResizeObserver(() => scheduleUpdate())
 
-  function updateOverlayForLastHovered() {
+  function update() {
     rafId = null
-    if (lastHovered && lastHovered.isConnected) {
-      overlay.show(lastHovered.getBoundingClientRect(), describeElement(lastHovered))
-    } else {
-      overlay.hide()
-    }
+    if (selected?.isConnected) selectionBox.show(selected, overlayLabel(selected))
+    else selectionBox.hide()
+    // Survoler l'élément déjà sélectionné : sa surbrillance de sélection suffit.
+    if (active && lastHovered?.isConnected && lastHovered !== selected) hoverBox.show(lastHovered, overlayLabel(lastHovered))
+    else hoverBox.hide()
   }
 
-  function scheduleOverlayUpdate() {
+  function scheduleUpdate() {
     if (rafId != null) return
-    rafId = requestAnimationFrame(updateOverlayForLastHovered)
+    rafId = requestAnimationFrame(update)
   }
 
-  // event.target est retargeté vers `host` par le navigateur quand l'événement provient
-  // de l'intérieur de notre shadow root (ouvert) : ce check suffit à ignorer les
-  // interactions avec notre propre UI, sans avoir besoin de elementFromPoint manuel.
-  function isOwnUi(target: EventTarget | null): boolean {
-    return !target || host.contains(target as Node)
+  // Élément réellement visé, y compris à l'intérieur d'un Shadow DOM de la page (web
+  // component) : `e.target` est retargeté vers l'hôte du shadow root, `composedPath()[0]` non.
+  // `null` si l'événement provient de notre propre UI (le chemin traverse alors `host`).
+  function pageTarget(e: Event): Element | null {
+    const path = e.composedPath()
+    if (path.includes(host)) return null
+    const first = path[0]
+    return first instanceof Element ? first : null
   }
 
   function onMouseMove(e: MouseEvent) {
-    const target = e.target as Element | null
-    if (isOwnUi(target)) {
-      lastHovered = null
-      overlay.hide()
-      return
-    }
-    lastHovered = target
-    scheduleOverlayUpdate()
+    lastHovered = pageTarget(e)
+    scheduleUpdate()
   }
 
-  function onClick(e: MouseEvent) {
-    const target = e.target as Element | null
-    if (isOwnUi(target)) return // clic dans notre propre UI : comportement normal
+  function swallow(e: Event) {
     e.preventDefault()
     e.stopPropagation()
     e.stopImmediatePropagation()
-    onSelect(target!)
   }
 
-  function onScrollOrResize() {
-    scheduleOverlayUpdate()
+  function onClick(e: MouseEvent) {
+    const target = pageTarget(e)
+    if (!target) return // clic dans notre propre UI : comportement normal
+    swallow(e)
+    onSelect(target)
+  }
+
+  // Bloquer seulement `click` laissait passer les autres événements du geste (dropdowns qui
+  // s'ouvrent au mousedown, drag, liens en mousedown...) : on les avale aussi pendant le picking.
+  function onPressEvent(e: Event) {
+    if (pageTarget(e)) swallow(e)
   }
 
   function onKeyDown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
-      overlay.hide()
       lastHovered = null
+      scheduleUpdate()
       onEscape?.()
+    }
+  }
+
+  // Défilement/redimensionnement : écoutés tant qu'il y a quelque chose à suivre (picking actif
+  // OU sélection affichée, y compris verrouillée).
+  let tracking = false
+  function syncTracking() {
+    const shouldTrack = active || selected != null
+    if (shouldTrack === tracking) return
+    tracking = shouldTrack
+    if (tracking) {
+      window.addEventListener('scroll', scheduleUpdate, true)
+      window.addEventListener('resize', scheduleUpdate)
+    } else {
+      window.removeEventListener('scroll', scheduleUpdate, true)
+      window.removeEventListener('resize', scheduleUpdate)
     }
   }
 
   return {
     showSelection(el) {
-      if (el && el.isConnected) overlay.show(el.getBoundingClientRect(), describeElement(el))
-      else overlay.hide()
+      if (el !== selected) {
+        resizeObserver.disconnect()
+        if (el) resizeObserver.observe(el)
+        selected = el
+        syncTracking()
+      }
+      scheduleUpdate()
     },
     start() {
       if (active) return
       active = true
       document.addEventListener('mousemove', onMouseMove, true)
       document.addEventListener('click', onClick, true)
+      for (const type of PRESS_EVENTS) document.addEventListener(type, onPressEvent, true)
       document.addEventListener('keydown', onKeyDown, true)
-      window.addEventListener('scroll', onScrollOrResize, true)
-      window.addEventListener('resize', onScrollOrResize)
+      syncTracking()
     },
     stop() {
       if (!active) return
       active = false
       document.removeEventListener('mousemove', onMouseMove, true)
       document.removeEventListener('click', onClick, true)
+      for (const type of PRESS_EVENTS) document.removeEventListener(type, onPressEvent, true)
       document.removeEventListener('keydown', onKeyDown, true)
-      window.removeEventListener('scroll', onScrollOrResize, true)
-      window.removeEventListener('resize', onScrollOrResize)
-      if (rafId != null) cancelAnimationFrame(rafId)
-      overlay.hide()
       lastHovered = null
+      syncTracking()
+      scheduleUpdate()
     },
   }
 }
