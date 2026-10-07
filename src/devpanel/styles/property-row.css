@@ -1,16 +1,20 @@
 /* --- Ligne de propriété compacte (remplace les grilles à plat) --- */
 
+/* Fenêtre étroite : côtés et valeur passent à la ligne plutôt que de réduire le libellé à rien. */
 .devwind-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 6px 8px;
   padding: 6px 0;
   border-bottom: 1px solid var(--dw-bg-subtle);
 }
 
 .devwind-row__label {
-  flex: 1;
-  min-width: 0;
+  flex: 1 0 auto;
+  min-width: 4em;
+  max-width: 100%;
   font-size: 11px;
   color: var(--dw-text-strong);
   overflow: hidden;

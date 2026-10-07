@@ -1,5 +1,8 @@
+/* Barres de défilement fines : le panneau est étroit, celles du système (17px sous Windows)
+   mangeaient la place des colonnes. */
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
 }
 
 html,
