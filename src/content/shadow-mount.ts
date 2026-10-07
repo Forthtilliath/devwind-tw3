@@ -15,7 +15,9 @@ export function mountShadowHost(hostId: string): ShadowMount {
   host.style.cssText = 'all: initial; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none;'
   document.documentElement.appendChild(host)
 
-  const shadowRoot = host.attachShadow({ mode: 'open' })
+  // `closed` : `host.shadowRoot` vaut `null` pour le JS de la page, qui ne peut donc ni lire ni
+  // modifier l'overlay. On garde la seule référence au root, retournée ci-dessous.
+  const shadowRoot = host.attachShadow({ mode: 'closed' })
 
   // Le Shadow DOM bloque nativement les collisions de sélecteurs dans les deux sens,
   // mais pas l'héritage CSS (font-family, color, line-height traversent la frontière) :
