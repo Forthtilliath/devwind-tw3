@@ -1,7 +1,10 @@
-import generatedClasses from '../data/generated/tailwind-classes.json'
+import { classes, CLASS_BY_NAME } from '../data/classes'
 import type { GeneratedClass } from '../types'
 
-const classes = generatedClasses as GeneratedClass[]
+/** Entrée actuelle du dataset pour ce nom de classe (sert à re-valider des données persistées). */
+export function getGeneratedClass(className: string): GeneratedClass | undefined {
+  return CLASS_BY_NAME.get(className)
+}
 
 export interface SubcategoryGroup {
   name: string
@@ -50,11 +53,3 @@ export const categoryGroups: CategoryGroup[] = buildCategoryGroups(classes).sort
   const bi = CATEGORY_ORDER.indexOf(b.name)
   return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
 })
-
-export function searchClasses(query: string): GeneratedClass[] {
-  const q = query.trim().toLowerCase()
-  if (!q) return []
-  return classes.filter(
-    (c) => c.className.toLowerCase().includes(q) || c.category.toLowerCase().includes(q) || c.subcategory?.toLowerCase().includes(q),
-  )
-}
