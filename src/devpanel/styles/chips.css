@@ -1,0 +1,54 @@
+.devwind-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  overflow-y: auto;
+  max-height: 96px;
+  flex-shrink: 0;
+}
+
+.devwind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 5px;
+  padding: 2px 4px 2px 6px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.devwind-chip__variant {
+  background: var(--dw-accent-strong);
+  color: white;
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.devwind-chip__base {
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.devwind-chip__warning {
+  cursor: help;
+  font-size: 10px;
+}
+
+.devwind-chip__remove {
+  background: none;
+  border: none;
+  color: var(--dw-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.devwind-chip__remove:hover {
+  color: var(--dw-danger);
+}

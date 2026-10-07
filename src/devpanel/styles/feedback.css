@@ -1,0 +1,104 @@
+/* --- Boutons d'action génériques (état déconnecté, erreur) --- */
+
+.devwind-button {
+  background: var(--dw-accent-strong);
+  border: 1px solid var(--dw-accent);
+  color: white;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.devwind-button:hover:not(:disabled) {
+  background: var(--dw-accent);
+}
+
+.devwind-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.devwind-button--secondary {
+  background: var(--dw-bg-subtle);
+  border-color: var(--dw-border-strong);
+  color: var(--dw-text);
+}
+
+.devwind-button--secondary:hover:not(:disabled) {
+  background: var(--dw-bg-subtle);
+  border-color: var(--dw-accent);
+}
+
+/* --- Page fermée/rechargée, erreur de rendu --- */
+
+.devwind-disconnected__title {
+  font-weight: 600;
+  color: var(--dw-text);
+  margin-bottom: 0;
+}
+
+.devwind-disconnected__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.devwind-disconnected__help {
+  max-width: 320px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dw-warn-text);
+  background: var(--dw-warn-bg);
+  border: 1px solid var(--dw-warn-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.devwind-error__details {
+  max-width: 100%;
+  overflow-x: auto;
+  font-size: 11px;
+  color: var(--dw-danger);
+  white-space: pre-wrap;
+}
+
+/* --- Message temporaire (bas du panneau, au-dessus du contenu) --- */
+
+.devwind-notice-region {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.devwind-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 360px;
+  background: var(--dw-text-strong);
+  color: var(--dw-bg);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px var(--dw-shadow);
+  pointer-events: auto;
+}
+
+.devwind-notice__close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}

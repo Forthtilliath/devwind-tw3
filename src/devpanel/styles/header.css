@@ -1,0 +1,104 @@
+.devwind-copy-btn {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  color: var(--dw-text-strong);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.devwind-copy-btn:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-theme-btn,
+.devwind-lang-btn,
+.devwind-lock-btn,
+.devwind-history-btn {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.devwind-theme-btn:hover,
+.devwind-lang-btn:hover,
+.devwind-lock-btn:hover,
+.devwind-history-btn:hover:not(:disabled) {
+  border-color: var(--dw-accent);
+}
+
+.devwind-history-btn {
+  color: var(--dw-text-strong);
+}
+
+.devwind-history-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.devwind-lang-btn {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dw-text-strong);
+}
+
+.devwind-lock-btn--active {
+  background: var(--dw-warn-bg);
+  border-color: var(--dw-warn-border);
+}
+
+.devwind-changelog-btn {
+  background: var(--dw-bg-subtle);
+  border: 1px solid var(--dw-border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.devwind-changelog-btn:hover {
+  border-color: var(--dw-accent);
+}
+
+.devwind-changelog-btn__count {
+  background: var(--dw-accent-strong);
+  color: white;
+  border-radius: 999px;
+  font-size: 9px;
+  font-family: ui-monospace, Menlo, monospace;
+  padding: 0 5px;
+  line-height: 1.6;
+}
+
+/* --- Export (menu Copier, dans un Popover) --- */
+
+.devwind-export__menu {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.devwind-export__menu button {
+  background: none;
+  border: none;
+  color: var(--dw-text);
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.devwind-export__menu button:hover {
+  background: var(--dw-border);
+}

@@ -1,0 +1,31 @@
+/* Jetons de couleur : chaque valeur est `light-dark(clair, sombre)`, résolue selon `color-scheme`.
+ * Thème automatique par défaut (`light dark` : suit `prefers-color-scheme`), forcé par le toggle
+ * du panneau via `data-theme` (cf. devpanel/theme.ts). */
+:root {
+  color-scheme: light dark;
+  --dw-bg: light-dark(#ffffff, #18181b);
+  --dw-bg-subtle: light-dark(#f4f4f5, #27272a);
+  --dw-border: light-dark(#e4e4e7, #3f3f46);
+  --dw-border-strong: light-dark(#d4d4d8, #52525b);
+  --dw-text: light-dark(#18181b, #e4e4e7);
+  --dw-text-muted: light-dark(#52525b, #a1a1aa);
+  --dw-text-dim: #71717a;
+  --dw-text-strong: light-dark(#27272a, #d4d4d8);
+  --dw-accent: #6366f1;
+  --dw-accent-strong: light-dark(#4f46e5, #4338ca);
+  --dw-accent-text: light-dark(#4338ca, #a5b4fc);
+  --dw-danger: light-dark(#dc2626, #f87171);
+  --dw-warn-bg: light-dark(#fef3c7, #78350f);
+  --dw-warn-text: light-dark(#92400e, #fde68a);
+  --dw-warn-border: #f59e0b;
+  --dw-shadow: light-dark(rgba(24, 24, 27, 0.15), rgba(0, 0, 0, 0.4));
+  --dw-swatch-border: light-dark(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.3));
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}

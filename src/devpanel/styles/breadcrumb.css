@@ -1,0 +1,40 @@
+.devwind-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  font-size: 10px;
+  font-family: ui-monospace, Menlo, monospace;
+  flex-shrink: 0;
+}
+
+.devwind-breadcrumb__segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.devwind-breadcrumb__item {
+  background: none;
+  border: none;
+  color: var(--dw-text-muted);
+  cursor: pointer;
+  padding: 1px 2px;
+  font: inherit;
+}
+
+.devwind-breadcrumb__item:hover {
+  color: var(--dw-accent-text);
+  text-decoration: underline;
+}
+
+.devwind-breadcrumb__sep {
+  color: var(--dw-border-strong);
+}
+
+.devwind-breadcrumb__current {
+  color: var(--dw-text);
+  font-weight: 600;
+}

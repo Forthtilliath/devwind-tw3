@@ -1,0 +1,79 @@
+.devwind-custom-section {
+  border-top: 1px solid var(--dw-border);
+  padding: 8px 14px;
+  flex-shrink: 0;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.devwind-custom-section summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--dw-text-strong);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.devwind-badge {
+  font-size: 10px;
+  background: var(--dw-warn-bg);
+  color: var(--dw-warn-text);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* --- Variables de thème détectées sur le site --- */
+
+.devwind-theme-vars__filter {
+  width: 100%;
+  margin: 6px 0;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--dw-border);
+  background: var(--dw-bg-subtle);
+  color: var(--dw-text);
+  font-size: 11px;
+}
+
+.devwind-theme-vars__filter:focus {
+  outline: 1px solid var(--dw-accent);
+}
+
+.devwind-theme-vars__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.devwind-theme-vars__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 4px;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, monospace;
+  color: var(--dw-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.devwind-theme-vars__row:hover {
+  background: var(--dw-bg-subtle);
+}
+
+.devwind-theme-vars__name {
+  color: var(--dw-text-strong);
+  flex-shrink: 0;
+}
+
+.devwind-theme-vars__value {
+  color: var(--dw-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: auto;
+}

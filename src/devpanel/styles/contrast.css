@@ -1,0 +1,39 @@
+/* --- Contrôle de contraste WCAG --- */
+
+.devwind-contrast-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--dw-border);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.devwind-contrast-row__label {
+  color: var(--dw-text-dim);
+}
+
+.devwind-contrast {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.devwind-contrast--pass {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.devwind-contrast--fail {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--dw-danger);
+}
+
+.devwind-contrast--compact {
+  margin-left: auto;
+  padding: 0 4px;
+  font-size: 9px;
+}
