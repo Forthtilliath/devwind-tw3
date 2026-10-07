@@ -1,13 +1,29 @@
 name: CI
 
+# Uniquement sur les PR vers main (pas de `push: main` en doublon : le contenu mergé en rebase a
+# déjà été validé sur la PR). Les PR qui ne touchent que la doc/les images ne lancent rien.
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '**.png'
+      - '**.jpg'
+      - '**.svg'
+      - 'LICENSE'
+
+# Un nouveau push sur la PR annule l'exécution précédente, devenue obsolète.
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   lint-and-build:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -23,6 +39,11 @@ jobs:
 
       # tsc -b type-check aussi tests/e2e/ (cf. tsconfig.tests.json), sans avoir besoin de
       # lancer Playwright ici : tester une extension Chrome en CI demande un Chromium headed
-      # (xvfb) et un profil persistant, pas encore mis en place — voir UPGRADES.md.
+      # (xvfb) et un profil persistant, pas encore mis en place.
       - name: Build
         run: npm run build
+
+      # Tests unitaires Vitest de src/core/ (< 1 s d'exécution, même job pour ne pas refaire
+      # checkout + install).
+      - name: Unit tests
+        run: npm test
