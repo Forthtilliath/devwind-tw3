@@ -1,107 +1,57 @@
-import { matchTaxonomy, splitVariants } from './class-parser'
-import type { CssScanResult } from '../types'
+import { extractClassSelectors, isGroupingRule, isRuleWithSelector } from './css-selectors'
+import { collectBreakpointVotes } from './breakpoint-scanner'
+import type { BreakpointVote, CssScanResult } from '../types'
 
 /**
- * Sélecteur de classe CSS, en gérant les caractères échappés (`\:`, `\/`, `\[`, `\]`, `\.`...)
- * que Tailwind génère pour les variants/valeurs arbitraires dans le sélecteur compilé
- * (ex. `.hover\:bg-red-500:hover`, `.w-\[100px\]`). Un caractère normal OU un backslash
- * suivi de n'importe quel caractère sont acceptés ; on s'arrête au premier caractère
- * "non échappé" qui ne fait pas partie d'un nom de classe (`:`, ` `, `.`, `>`, `[`...).
+ * Appelle `onClass` pour chaque classe d'un sélecteur. `isRuleWithSelector` et
+ * `isGroupingRule` ne sont PAS mutuellement exclusifs : depuis le support natif du CSS Nesting,
+ * un `CSSStyleRule` a lui aussi une propriété `cssRules` (liste vide si aucune règle imbriquée),
+ * en plus de son propre `selectorText`. Il faut donc traiter le sélecteur de la règle ET
+ * recurser dans ses éventuelles règles imbriquées.
  */
-const CLASS_SELECTOR_RE = /\.((?:[A-Za-z0-9_-]|\\.)+)/g
-
-function unescapeCssIdent(raw: string): string {
-  return raw.replace(/\\(.)/g, '$1')
-}
-
-function isRecognizedTailwindClass(className: string): boolean {
-  const { base } = splitVariants(className)
-  return matchTaxonomy(base) !== null
-}
-
-/**
- * Détection heuristique d'un préfixe de site (option `prefix` de Tailwind v3 — le préfixe est
- * concaténé DIRECTEMENT devant le nom de classe, ex. `tw-bg-red-500`, contrairement à v4 où
- * c'est un variant supplémentaire en tête `tw:bg-red-500`). Purement informatif : une classe
- * préfixée n'est PAS reconnue par `matchTaxonomy` (le préfixe fait partie intégrante du nom,
- * ce n'est pas juste un variant à ignorer comme en v4), donc elle reste affichée comme "Custom"
- * tant que le remplacement/l'édition prefix-aware n'est pas implémenté (voir UPGRADES.md).
- *
- * Algorithme : pour chaque classe non reconnue telle quelle, on essaie tous les points de
- * coupure possibles (`candidat = début`, `reste = fin`) et on retient les candidats dont le
- * reste correspond à une vraie classe Tailwind générée — `matchTaxonomy` (validé contre le
- * dataset réel) écarte déjà l'immense majorité des coupures fantaisistes ; le seuil "≥3
- * occurrences du même candidat" apporte une sécurité statistique supplémentaire contre une
- * coïncidence isolée.
- */
-export function detectSitePrefix(doc: Document = document): string | null {
-  const candidates = new Map<string, number>()
-  for (const el of Array.from(doc.querySelectorAll('[class]'))) {
-    for (const raw of el.className.toString().split(/\s+/).filter(Boolean)) {
-      const { base } = splitVariants(raw)
-      if (matchTaxonomy(base) !== null) continue // déjà reconnue telle quelle, rien à chercher
-
-      const isNegative = base.startsWith('-')
-      const working = isNegative ? base.slice(1) : base
-
-      for (let i = 1; i < working.length; i++) {
-        const prefixCandidate = working.slice(0, i)
-        if (!/^[a-z][a-z0-9-]*$/.test(prefixCandidate)) continue
-        const rest = working.slice(i)
-        if (!rest) continue
-        const restBase = isNegative ? `-${rest}` : rest
-        if (matchTaxonomy(restBase) !== null) {
-          candidates.set(prefixCandidate, (candidates.get(prefixCandidate) ?? 0) + 1)
-        }
-      }
-    }
-  }
-  let best: string | null = null
-  let bestCount = 0
-  for (const [candidate, count] of candidates) {
-    if (count > bestCount) {
-      best = candidate
-      bestCount = count
-    }
-  }
-  return bestCount >= 3 ? best : null
-}
-
-function extractClassSelectors(selectorText: string): string[] {
-  const out: string[] = []
-  for (const m of selectorText.matchAll(CLASS_SELECTOR_RE)) {
-    out.push(unescapeCssIdent(m[1]))
-  }
-  return out
-}
-
-function isRuleWithSelector(rule: CSSRule): rule is CSSStyleRule {
-  return 'selectorText' in rule
-}
-
-function isGroupingRule(rule: CSSRule): rule is CSSMediaRule | CSSSupportsRule {
-  return 'cssRules' in rule
-}
-
-/**
- * `isRuleWithSelector` et `isGroupingRule` ne sont PAS mutuellement exclusifs : depuis le
- * support natif du CSS Nesting, un `CSSStyleRule` a lui aussi une propriété `cssRules`
- * (liste vide si aucune règle imbriquée), en plus de son propre `selectorText`. Il faut donc
- * traiter le sélecteur de la règle ET recurser dans ses éventuelles règles imbriquées.
- */
-function walkRules(rules: CSSRuleList, href: string | null, found: Map<string, string[]>) {
+function walkRules(rules: CSSRuleList, onClass: (cls: string) => void) {
   for (const rule of Array.from(rules)) {
     if (isRuleWithSelector(rule)) {
-      for (const cls of extractClassSelectors(rule.selectorText)) {
-        if (isRecognizedTailwindClass(cls)) continue
-        const sources = found.get(cls) ?? []
-        if (!sources.includes(href ?? '(inline)')) sources.push(href ?? '(inline)')
-        found.set(cls, sources)
-      }
+      for (const cls of extractClassSelectors(rule.selectorText)) onClass(cls)
     }
-    if (isGroupingRule(rule) && rule.cssRules.length > 0) {
-      walkRules(rule.cssRules, href, found)
+    if (isGroupingRule(rule) && rule.cssRules.length > 0) walkRules(rule.cssRules, onClass)
+  }
+}
+
+function addSource(found: Map<string, string[]>, href: string | null) {
+  const source = href ?? '(inline)'
+  return (cls: string) => {
+    const sources = found.get(cls)
+    if (!sources) found.set(cls, [source])
+    else if (!sources.includes(source)) sources.push(source)
+  }
+}
+
+function isIgnoredSheet(sheet: CSSStyleSheet, ignoreStyleId?: string): boolean {
+  return ignoreStyleId != null && (sheet.ownerNode as Element | null)?.id === ignoreStyleId
+}
+
+const CROSS_ORIGIN_TIMEOUT_MS = 5000
+// Large devant une feuille Tailwind de prod (quelques centaines de Ko) ou un framework complet.
+const CROSS_ORIGIN_MAX_BYTES = 5 * 1024 * 1024
+
+/** Lit le corps en flux et abandonne dès que `maxBytes` est dépassé (`Content-Length` peut être
+ * absent ou faux, on ne s'y fie que pour refuser d'emblée). `null` si trop gros. */
+async function readTextWithLimit(res: Response, maxBytes: number): Promise<string | null> {
+  if (Number(res.headers.get('content-length')) > maxBytes || !res.body) return null
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let total = 0
+  let text = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) return text + decoder.decode()
+    total += value.byteLength
+    if (total > maxBytes) {
+      void reader.cancel()
+      return null
     }
+    text += decoder.decode(value, { stream: true })
   }
 }
 
@@ -112,13 +62,16 @@ function walkRules(rules: CSSRuleList, href: string | null, found: Map<string, s
  * une fois le texte récupéré, ce n'est plus une ressource distante du point de vue du CSSOM,
  * `cssRules` s'y lit normalement. Marche pour les CDN publics qui autorisent CORS (Google
  * Fonts, jsDelivr, unpkg...) ; échoue silencieusement sinon (pas de CORS, réseau, `@import`
- * dans le texte que `CSSStyleSheet` constructible n'accepte pas).
+ * dans le texte que `CSSStyleSheet` constructible n'accepte pas). Borné en temps et en taille
+ * (serveur lent ou réponse énorme ne doivent pas bloquer le scan), et sans cookies : on ne
+ * fait que lire une feuille publique.
  */
 async function fetchCrossOriginRules(href: string): Promise<CSSRuleList | null> {
   try {
-    const res = await fetch(href, { mode: 'cors' })
+    const res = await fetch(href, { mode: 'cors', credentials: 'omit', signal: AbortSignal.timeout(CROSS_ORIGIN_TIMEOUT_MS) })
     if (!res.ok) return null
-    const text = await res.text()
+    const text = await readTextWithLimit(res, CROSS_ORIGIN_MAX_BYTES)
+    if (text == null) return null
     const sheet = new CSSStyleSheet()
     sheet.replaceSync(text)
     return sheet.cssRules
@@ -128,17 +81,24 @@ async function fetchCrossOriginRules(href: string): Promise<CSSRuleList | null> 
 }
 
 /**
- * Parcourt les feuilles de style chargées par la page pour en extraire les classes
- * "custom" (non reconnues comme Tailwind). Les feuilles cross-origin sans CORS restent
- * listées comme non scannables (`fetch()` échoue aussi dans ce cas) ; celles qui autorisent
- * CORS sont récupérées via `fetchCrossOriginRules`.
+ * Parcourt les feuilles de style chargées par la page et liste TOUTES les classes de leurs
+ * sélecteurs, avec leurs sources : c'est le panneau, qui a la taxonomie, qui écarte ensuite
+ * les classes Tailwind pour ne garder que les "custom". Les feuilles cross-origin sans CORS
+ * restent listées comme non scannables (`fetch()` échoue aussi dans ce cas) ; celles qui
+ * autorisent CORS sont récupérées via `fetchCrossOriginRules`. Recense au passage les
+ * breakpoints utilisés par les media queries du site (cf. breakpoint-scanner.ts).
  */
-export async function scanCustomClasses(doc: Document = document): Promise<CssScanResult> {
+export async function scanStylesheetClasses(
+  doc: Document = document,
+  ignoreStyleId?: string,
+): Promise<CssScanResult & { breakpoints: BreakpointVote[] }> {
   const found = new Map<string, string[]>()
   const unscannable: string[] = []
   const corsRetry: string[] = []
+  const votes = new Map<string, BreakpointVote>()
 
   for (const sheet of Array.from(doc.styleSheets)) {
+    if (isIgnoredSheet(sheet, ignoreStyleId)) continue
     let rules: CSSRuleList
     try {
       rules = sheet.cssRules
@@ -147,67 +107,66 @@ export async function scanCustomClasses(doc: Document = document): Promise<CssSc
       else unscannable.push('(inline)')
       continue
     }
-    if (rules) walkRules(rules, sheet.href, found)
+    if (!rules) continue
+    walkRules(rules, addSource(found, sheet.href))
+    collectBreakpointVotes(rules, votes)
   }
 
   await Promise.all(
     corsRetry.map(async (href) => {
       const rules = await fetchCrossOriginRules(href)
-      if (rules) walkRules(rules, href, found)
-      else unscannable.push(href)
+      if (!rules) {
+        unscannable.push(href)
+        return
+      }
+      walkRules(rules, addSource(found, href))
+      collectBreakpointVotes(rules, votes)
     }),
   )
 
-  return { found, unscannable, detectedPrefix: detectSitePrefix(doc) }
-}
-
-function ruleListHasClass(rules: CSSRuleList, target: string): boolean {
-  for (const rule of Array.from(rules)) {
-    if (isRuleWithSelector(rule) && extractClassSelectors(rule.selectorText).includes(target)) return true
-    if (isGroupingRule(rule) && rule.cssRules.length > 0 && ruleListHasClass(rule.cssRules, target)) return true
-  }
-  return false
+  return { found, unscannable, breakpoints: Array.from(votes.values()) }
 }
 
 /**
- * Est-ce qu'une règle CSS existe déjà pour cette classe exacte sur la page (hors feuille
- * injectée par DevWind lui-même, cf. src/core/live-style.ts) ? Sert à savoir si on doit
- * synthétiser nous-mêmes la règle pour prévisualiser une classe absente d'un build de
- * production purgé (voir live-style.ts).
+ * Classes ayant au moins une règle dans les feuilles lisibles de la page (hors feuille
+ * `ignoreStyleId`, celle injectée par DevWind). Construit en un seul parcours du CSSOM, pour
+ * être mis en cache par l'appelant plutôt que de reparcourir toutes les règles à chaque édition.
  */
-export function hasRuleForClass(className: string, doc: Document = document, ignoreStyleId?: string): boolean {
+export function collectClassesWithRules(doc: Document = document, ignoreStyleId?: string): Set<string> {
+  const classes = new Set<string>()
+  const add = (cls: string) => classes.add(cls)
   for (const sheet of Array.from(doc.styleSheets)) {
-    const owner = sheet.ownerNode as HTMLElement | null
-    if (ignoreStyleId && owner?.id === ignoreStyleId) continue
+    if (isIgnoredSheet(sheet, ignoreStyleId)) continue
     let rules: CSSRuleList
     try {
       rules = sheet.cssRules
     } catch {
       continue
     }
-    if (rules && ruleListHasClass(rules, className)) return true
+    if (rules) walkRules(rules, add)
   }
-  return false
+  return classes
 }
 
 const STYLESHEET_SELECTOR = 'link[rel="stylesheet"], style'
 
-function isStylesheetNode(node: Node): boolean {
-  return node instanceof Element && node.matches(STYLESHEET_SELECTOR)
-}
-
 /**
- * Prévient `onChange` (avec un debounce, pour absorber les ajouts en rafale d'un même
- * rendu) quand la page ajoute une nouvelle feuille de style (`<link rel="stylesheet">` ou
- * `<style>`) après le scan initial — cas des sites qui chargent du CSS à la demande (route
- * SPA, composant lazy-loadé...). Retourne une fonction de nettoyage.
+ * Prévient `onChange` (avec un debounce, pour absorber les ajouts en rafale d'un même rendu)
+ * quand les feuilles de style de la page changent après le scan initial : `<link
+ * rel="stylesheet">`/`<style>` ajouté ou retiré (route SPA, composant lazy-loadé...), ou contenu
+ * d'un `<style>` remplacé (HMR). Les nœuds d'id `ignoreId` (la feuille que DevWind injecte
+ * lui-même à chaque édition) sont ignorés : ils déclencheraient un rescan complet pour rien.
+ * Retourne une fonction de nettoyage.
  */
-export function watchForStylesheetChanges(onChange: () => void, doc: Document = document): () => void {
+export function watchForStylesheetChanges(onChange: () => void, doc: Document = document, ignoreId?: string): () => void {
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
+  const isForeignStylesheet = (node: Node) => node instanceof Element && node.id !== ignoreId && node.matches(STYLESHEET_SELECTOR)
+  const isRelevant = (m: MutationRecord) =>
+    isForeignStylesheet(m.target) || Array.from(m.addedNodes).some(isForeignStylesheet) || Array.from(m.removedNodes).some(isForeignStylesheet)
+
   const observer = new MutationObserver((mutations) => {
-    const hasNewStylesheet = mutations.some((m) => Array.from(m.addedNodes).some(isStylesheetNode))
-    if (!hasNewStylesheet) return
+    if (!mutations.some(isRelevant)) return
     if (debounceTimer != null) clearTimeout(debounceTimer)
     debounceTimer = setTimeout(onChange, 300)
   })
